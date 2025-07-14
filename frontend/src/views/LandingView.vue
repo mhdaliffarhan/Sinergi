@@ -25,7 +25,6 @@
       >
         Masuk Aplikasi
       </router-link>
-
     </div>
   </div>
 </template>
