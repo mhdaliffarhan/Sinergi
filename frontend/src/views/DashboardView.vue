@@ -22,55 +22,71 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
 import DaftarAktivitas from '@/components/DaftarAktivitas.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormBuatAktivitas from '@/components/FormBuatAktivitas.vue';
 
-const aktivitas = ref([
-  { id: 1, nama: 'Rapat Kick-off Proyek SUTAS 2025', tanggal: '15 Juli 2025', tim: 'Tim SUTAS', dokumen: 3 },
-  { id: 2, nama: 'Pelatihan Penggunaan Aplikasi SINERGI', tanggal: '16 Juli 2025', tim: 'Divisi IT', dokumen: 1 },
-]);
-
+const aktivitas = ref([]);
 const isModalOpen = ref(false);
+
+// --- FUNGSI KONVERSI (tetap sama) ---
+const snakeToCamel = (str) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
+const convertKeysToCamelCase = (obj) => {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(convertKeysToCamelCase);
+  
+  const newObj = {};
+  for (let key in obj) {
+    newObj[snakeToCamel(key)] = convertKeysToCamelCase(obj[key]);
+  }
+  return newObj;
+};
+
+const fetchAktivitas = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/aktivitas');
+    console.log(response.data);
+    aktivitas.value = convertKeysToCamelCase(response.data);
+  } catch (error) {
+    console.error("Gagal mengambil data aktivitas:", error);
+  }
+};
+
+onMounted(() => {
+  fetchAktivitas();
+});
+
+// --- FUNGSI SUBMIT YANG MENGGABUNGKAN SEMUANYA ---
+const handleActivitySubmit = async (formData) => {
+  // Buat salinan data form untuk kita modifikasi
+  const payload = { ...formData };
+
+  // Daftar field yang harus diubah dari string kosong menjadi null
+  const nullableFields = ['tanggal', 'tanggalMulai', 'tanggalSelesai', 'jamMulai', 'jamSelesai'];
+
+  // Loop melalui setiap field dan ubah nilainya jika kosong
+  nullableFields.forEach(field => {
+    if (payload[field] === '') {
+      payload[field] = null;
+    }
+  });
+
+  console.log('Mengirim data yang sudah dibersihkan:', payload);
+  
+  try {
+    // Kirim 'payload' yang sudah bersih ke backend
+    await axios.post('http://127.0.0.1:8000/api/aktivitas', payload);
+    
+    closeModal();
+    await fetchAktivitas();
+
+  } catch (error) {
+    console.error("Gagal menyimpan aktivitas:", error.response?.data || error.message);
+  }
+};
+
 const openModal = () => { isModalOpen.value = true; };
 const closeModal = () => { isModalOpen.value = false; };
-
-const handleActivitySubmit = (formData) => {
-  // 1. Buat variabel untuk menampung string tanggal yang akan ditampilkan
-  let tanggalTampil = '';
-
-  // Opsi untuk memformat tanggal agar lebih mudah dibaca (e.g., "15 Juli 2025")
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    return new Date(dateString).toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-  
-  // 2. Cek apakah 'Gunakan rentang tanggal' dicentang
-  if (formData.useDateRange) {
-    tanggalTampil = `${formatDate(formData.tanggalMulai)} - ${formatDate(formData.tanggalSelesai)}`;
-  } else {
-    tanggalTampil = formatDate(formData.tanggal);
-  }
-
-  // 3. Cek apakah 'Gunakan jam' dicentang, lalu tambahkan ke string
-  if (formData.useTime) {
-    tanggalTampil += ` | ${formData.jamMulai} - ${formData.jamSelesai} WITA`;
-  }
-  
-  // 4. Buat objek aktivitas baru dengan data yang sudah diformat
-  const newActivity = {
-    id: Date.now(),
-    nama: formData.nama,
-    tanggal: tanggalTampil, // Gunakan string yang sudah diformat
-    tim: formData.tim,
-    dokumen: 0,
-  };
-  
-  aktivitas.value.unshift(newActivity);
-};
 </script>

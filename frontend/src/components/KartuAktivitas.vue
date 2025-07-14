@@ -1,36 +1,50 @@
 <template>
-  <router-link 
-    to="/detail/1" 
-    class="block p-4 mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
-  >
+  <router-link to="/detail/1" class="block p-4 mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
     <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
-      {{ nama_aktivitas }}
+      {{ namaAktivitas }}
     </h3>
 
     <div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-3">
       <div class="flex items-center gap-1">
         <span>📅</span>
-        <span>{{ tanggal }}</span>
+        <span>{{ formattedTanggal }}</span>
       </div>
       <div class="flex items-center gap-1">
         <span>👥</span>
-        <span>{{ nama_tim }}</span>
+        <span>{{ timPenyelenggara }}</span>
       </div>
-    </div>
-
-    <div class="text-right">
-      <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-        {{ jumlah_dokumen }} Dokumen
-      </p>
     </div>
   </router-link>
 </template>
 
 <script setup>
-defineProps({
-  nama_aktivitas: { type: String, required: true },
-  tanggal: { type: String, required: true },
-  nama_tim: { type: String, required: true },
-  jumlah_dokumen: { type: Number, default: 0 },
+import { computed } from 'vue';
+
+const props = defineProps({
+  namaAktivitas: { type: String, required: true },
+  timPenyelenggara: { type: String },
+  tanggalMulai: { type: String },
+  tanggalSelesai: { type: String },
+  jamMulai: { type: String },
+  jamSelesai: { type: String },
+});
+
+const formattedTanggal = computed(() => {
+  let tanggalTampil = '';
+  const options = { day: 'numeric', month: 'long', year: 'numeric' };
+
+  if (props.tanggalMulai && props.tanggalSelesai) {
+    const mulai = new Date(props.tanggalMulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'long' });
+    const selesai = new Date(props.tanggalSelesai).toLocaleDateString('id-ID', options);
+    tanggalTampil = `${mulai} - ${selesai}`;
+  } else if (props.tanggalMulai) {
+    tanggalTampil = new Date(props.tanggalMulai).toLocaleDateString('id-ID', options);
+  }
+
+  if (props.jamMulai && props.jamSelesai) {
+    tanggalTampil += ` | ${props.jamMulai} - ${props.jamSelesai}`;
+  }
+
+  return tanggalTampil || 'Tanggal tidak ditentukan';
 });
 </script>

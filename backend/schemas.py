@@ -1,13 +1,13 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional
 from datetime import date, time, datetime
 
-# Skema untuk MEMBUAT aktivitas (menerima data dari Vue)
-# Tidak ada perubahan di sini
-class AktivitasCreate(BaseModel):
-    nama_aktivitas: str
+# Model dasar untuk semua skema kita
+class AktivitasBase(BaseModel):
+    # Field didefinisikan dengan camelCase agar sesuai dengan standar API/JSON
+    namaAktivitas: str
     deskripsi: Optional[str] = None
-    tim: Optional[str] = None
+    timPenyelenggara: Optional[str] = None
     tanggal: Optional[date] = None
     useDateRange: Optional[bool] = False
     useTime: Optional[bool] = False
@@ -16,24 +16,26 @@ class AktivitasCreate(BaseModel):
     jamMulai: Optional[time] = None
     jamSelesai: Optional[time] = None
 
+# Skema untuk MEMBUAT aktivitas (menerima data dari Vue)
+class AktivitasCreate(AktivitasBase):
+    pass
+
 # Skema untuk MEMBACA/MENGIRIM data (mengirim data ke Vue)
 class Aktivitas(BaseModel):
+    # Field di sini juga camelCase, tapi menggunakan alias
+    # untuk memetakan dari snake_case di database
     id: int
-    nama_aktivitas: str
+    namaAktivitas: str = Field(alias='nama_aktivitas')
     deskripsi: Optional[str] = None
-    
-    # Pydantic akan mengisi field 'tim' dari atribut 'tim_penyelenggara' di database
-    tim: Optional[str] = Field(None, alias='tim_penyelenggara')
-    
-    # Pydantic akan mengisi field 'tanggalMulai' dari atribut 'tanggal_mulai' di database
+    timPenyelenggara: Optional[str] = Field(None, alias='tim_penyelenggara')
     tanggalMulai: Optional[date] = Field(None, alias='tanggal_mulai')
     tanggalSelesai: Optional[date] = Field(None, alias='tanggal_selesai')
     jamMulai: Optional[time] = Field(None, alias='jam_mulai')
     jamSelesai: Optional[time] = Field(None, alias='jam_selesai')
-    
-    dibuat_pada: datetime
+    dibuatPada: datetime = Field(alias='dibuat_pada')
 
-    class Config:
-        orm_mode = True
-        # Izinkan Pydantic untuk mempopulasikan field berdasarkan alias
-        allow_population_by_field_name = True
+    # Ini adalah sintaks Pydantic V2 yang benar
+    model_config = ConfigDict(
+        from_attributes=True,  # Menggantikan orm_mode = True
+        populate_by_name=True, # Menggantikan allow_population_by_field_name
+    )

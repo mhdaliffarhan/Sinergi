@@ -6,7 +6,7 @@
         <input 
           type="text" 
           id="nama-aktivitas" 
-          v-model="form.nama"
+          v-model="form.namaAktivitas"
           class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
           placeholder="Contoh: Rapat Evaluasi Bulanan"
         />
@@ -27,7 +27,7 @@
         <label for="tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tim Penyelenggara</label>
         <select 
           id="tim" 
-          v-model="form.tim"
+          v-model="form.timPenyelenggara"
           class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
         >
           <option disabled value="">Pilih tim</option>
@@ -64,7 +64,7 @@
         </div>
         <div v-else>
           <label for="tanggal" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tanggal Pelaksanaan</label>
-          <input type="date" id="tanggal" v-model="form.tanggal" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"/>
+          <input type="date" id="tanggal" v-model="form.tanggalMulai" class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"/>
         </div>
       </Transition>
 
@@ -100,12 +100,12 @@ const emit = defineEmits(['close', 'submit']);
 
 // Perbarui 'form' untuk menampung semua state baru
 const form = reactive({
-  nama: '',
+  namaAktivitas: '',
   deskripsi: '',
-  tim: '',
+  timPenyelenggara: '',
   tanggal: '',
-  useDateRange: false, // state untuk checkbox rentang tanggal
-  useTime: false,      // state untuk checkbox jam
+  useDateRange: false,
+  useTime: false,
   tanggalMulai: '',
   tanggalSelesai: '',
   jamMulai: '',
