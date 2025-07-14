@@ -47,7 +47,7 @@
 
         <Menu as="div" class="relative">
           <MenuButton class="flex items-center">
-            <img class="h-9 w-9 rounded-full object-cover" src="https://via.placeholder.com/150" alt="User profile photo" />
+            <img class="h-9 w-9 rounded-full object-cover" src="/profile-default.png" alt="User profile photo" />
           </MenuButton>
           <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
             <MenuItems class="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
