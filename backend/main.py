@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException 
+from fastapi import FastAPI, Depends, HTTPException, status, Response
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -101,3 +101,22 @@ def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: 
     db.commit()
     db.refresh(db_aktivitas)
     return db_aktivitas
+
+# --- ENDPOINT MENGHAPUS AKTIVITAS ---
+@app.delete("/api/aktivitas/{aktivitas_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_aktivitas(aktivitas_id: int, db: Session = Depends(get_db)):
+    # 1. Cari aktivitas yang akan dihapus
+    aktivitas_query = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id)
+    
+    # Jika tidak ditemukan, kirim error 404
+    if aktivitas_query.first() is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aktivitas tidak ditemukan")
+        
+    # 2. Hapus data dari database
+    aktivitas_query.delete(synchronize_session=False)
+    
+    # 3. Simpan perubahan
+    db.commit()
+    
+    # 4. Kembalikan respons tanpa konten (standar untuk DELETE)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

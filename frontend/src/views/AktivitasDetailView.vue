@@ -13,9 +13,14 @@
               
               <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
             </div>
-            <button @click="openEditModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 ml-4 flex-shrink-0">
-              Edit
-            </button>
+            <div class="flex items-center gap-2">
+              <button @click="openEditModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
+                Edit
+              </button>
+              <button @click="confirmDelete" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">
+                Hapus
+              </button>
+            </div>
           </div>
         <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
           <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" />
@@ -49,7 +54,7 @@
 
 <script setup>
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -57,6 +62,7 @@ import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormBuatAktivitas from '@/components/FormBuatAktivitas.vue';
 
 const route = useRoute();
+const router = useRouter();
 const toast = useToast();
 const aktivitasId = route.params.id;
 
@@ -149,6 +155,23 @@ const handleUpdateActivity = async (formData) => {
     const errorMsg = error.response?.data?.detail || "Gagal memperbarui aktivitas.";
     toast.error(errorMsg);
     console.error(error);
+  }
+};
+
+const deleteActivity = async () => {
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
+    toast.success("Aktivitas berhasil dihapus.");
+    // Arahkan pengguna kembali ke dashboard setelah berhasil hapus
+    router.push('/dashboard');
+  } catch (error) {
+    toast.error("Gagal menghapus aktivitas.");
+    console.error(error);
+  }
+};
+const confirmDelete = () => {
+  if (window.confirm("Apakah Anda yakin ingin menghapus aktivitas ini? Tindakan ini tidak dapat dibatalkan.")) {
+    deleteActivity();
   }
 };
 
