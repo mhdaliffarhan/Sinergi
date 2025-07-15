@@ -24,10 +24,13 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
+import { useToast } from 'vue-toastification';
+
 import DaftarAktivitas from '@/components/DaftarAktivitas.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormBuatAktivitas from '@/components/FormBuatAktivitas.vue';
 
+const toast = useToast();
 const aktivitas = ref([]);
 const isModalOpen = ref(false);
 
@@ -50,6 +53,7 @@ const fetchAktivitas = async () => {
     console.log(response.data);
     aktivitas.value = convertKeysToCamelCase(response.data);
   } catch (error) {
+    toast.error("Gagal memuat data aktivitas.");
     console.error("Gagal mengambil data aktivitas:", error);
   }
 };
@@ -78,11 +82,13 @@ const handleActivitySubmit = async (formData) => {
   try {
     // Kirim 'payload' yang sudah bersih ke backend
     await axios.post('http://127.0.0.1:8000/api/aktivitas', payload);
-    
+    toast.success("Aktivitas berhasil dibuat!");
     closeModal();
     await fetchAktivitas();
 
   } catch (error) {
+    const errorMsg = error.response?.data?.detail?.[0]?.msg || "Gagal menyimpan. Periksa kembali isian Anda.";
+    toast.error(errorMsg);
     console.error("Gagal menyimpan aktivitas:", error.response?.data || error.message);
   }
 };

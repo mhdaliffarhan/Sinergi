@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field, ConfigDict
-from typing import Optional
+from pydantic import BaseModel, model_validator, Field, ConfigDict
+from typing import Optional, Any
 from datetime import date, time, datetime
 
 # Model dasar untuk semua skema kita
@@ -18,7 +18,30 @@ class AktivitasBase(BaseModel):
 
 # Skema untuk MEMBUAT aktivitas (menerima data dari Vue)
 class AktivitasCreate(AktivitasBase):
-    pass
+    # Hilangkan Optional untuk membuatnya wajib diisi
+    namaAktivitas: str
+    timPenyelenggara: str
+
+    @model_validator(mode='before')
+    @classmethod
+    def check_required_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Validasi Tanggal
+            use_date_range = data.get('useDateRange')
+            if use_date_range:
+                if not data.get('tanggalMulai') or not data.get('tanggalSelesai'):
+                    raise ValueError('Tanggal Mulai dan Tanggal Selesai wajib diisi jika menggunakan rentang tanggal.')
+            else:
+                if not data.get('tanggal'):
+                    raise ValueError('Tanggal Pelaksanaan wajib diisi.')
+            
+            # Validasi Jam
+            use_time = data.get('useTime')
+            if use_time:
+                if not data.get('jamMulai') or not data.get('jamSelesai'):
+                    raise ValueError('Jam Mulai dan Jam Selesai wajib diisi jika menggunakan jam.')
+
+        return data
 
 # Skema untuk MEMBACA/MENGIRIM data (mengirim data ke Vue)
 class Aktivitas(BaseModel):
