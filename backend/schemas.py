@@ -1,8 +1,7 @@
 from pydantic import BaseModel, model_validator, Field, ConfigDict
-from typing import Optional, Any
+from typing import Optional, Any, List
 from datetime import date, time, datetime
 
-# Model dasar untuk semua skema kita
 class AktivitasBase(BaseModel):
     # Field didefinisikan dengan camelCase agar sesuai dengan standar API/JSON
     namaAktivitas: str
@@ -45,11 +44,31 @@ class AktivitasCreate(AktivitasBase):
                     if data.get('jamMulai') >= data.get('jamSelesai'):
                         raise ValueError('Jam Mulai harus sebelum Jam Selesai!')
         return data
+class DokumenBase(BaseModel):
+    keterangan: str
+    tipe: str # 'FILE' atau 'LINK'
+    pathAtauUrl: str
+
+class DokumenCreate(DokumenBase):
+    pass
+
+class Dokumen(BaseModel):
+    id: int
+    keterangan: str
+    tipe: str
+    pathAtauUrl: str = Field(alias='path_atau_url')
+    namaFileAsli: Optional[str] = Field(None, alias='nama_file_asli')
+    tipeFileMime: Optional[str] = Field(None, alias='tipe_file_mime')
+    diunggahPada: datetime = Field(alias='diunggah_pada')
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+    )
+
 
 # Skema untuk MEMBACA/MENGIRIM data (mengirim data ke Vue)
 class Aktivitas(BaseModel):
-    # Field di sini juga camelCase, tapi menggunakan alias
-    # untuk memetakan dari snake_case di database
     id: int
     namaAktivitas: str = Field(alias='nama_aktivitas')
     deskripsi: Optional[str] = None
@@ -60,8 +79,9 @@ class Aktivitas(BaseModel):
     jamSelesai: Optional[time] = Field(None, alias='jam_selesai')
     dibuatPada: datetime = Field(alias='dibuat_pada')
 
-    # Ini adalah sintaks Pydantic V2 yang benar
+    dokumenList: List[Dokumen] = Field(default=[], alias='dokumen')
+
     model_config = ConfigDict(
-        from_attributes=True,  # Menggantikan orm_mode = True
-        populate_by_name=True, # Menggantikan allow_population_by_field_name
+        from_attributes=True,
+        populate_by_name=True,
     )
