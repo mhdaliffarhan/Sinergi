@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException 
 from sqlalchemy.orm import Session
 from typing import List
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +52,52 @@ def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(g
     db_aktivitas = models.Aktivitas(**aktivitas_data_for_db)
     
     db.add(db_aktivitas)
+    db.commit()
+    db.refresh(db_aktivitas)
+    return db_aktivitas
+
+# --- ENDPOINT MENGAMBIL DETAIL AKTIVITAS ---
+@app.get("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
+def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(get_db)):
+    # Query database untuk mencari aktivitas dengan ID yang sesuai
+    db_aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
+    
+    # Jika aktivitas tidak ditemukan, kirim error 404
+    if db_aktivitas is None:
+        raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+        
+    # Jika ditemukan, kembalikan datanya
+    return db_aktivitas
+
+# --- ENDPOINT MENGUPDATE AKTIVITAS ---
+@app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
+def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
+    db_aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
+
+    if db_aktivitas is None:
+        raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+
+    # Perbarui field satu per satu secara eksplisit
+    db_aktivitas.nama_aktivitas = aktivitas.namaAktivitas
+    db_aktivitas.deskripsi = aktivitas.deskripsi
+    db_aktivitas.tim_penyelenggara = aktivitas.timPenyelenggara
+    
+    # Logika untuk tanggal
+    if aktivitas.useDateRange:
+        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
+        db_aktivitas.tanggal_selesai = aktivitas.tanggalSelesai
+    else:
+        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
+        db_aktivitas.tanggal_selesai = None
+
+    # Logika untuk jam
+    if aktivitas.useTime:
+        db_aktivitas.jam_mulai = aktivitas.jamMulai
+        db_aktivitas.jam_selesai = aktivitas.jamSelesai
+    else:
+        db_aktivitas.jam_mulai = None
+        db_aktivitas.jam_selesai = None
+        
     db.commit()
     db.refresh(db_aktivitas)
     return db_aktivitas

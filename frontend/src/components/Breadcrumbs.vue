@@ -11,7 +11,7 @@
           {{ item.text }}
         </router-link>
 
-        <span v-else class="font-medium text-gray-800 dark:text-gray-200">
+        <span v-else class="font-medium text-green-400 dark:text-green-500">
           {{ item.text }}
         </span>
 

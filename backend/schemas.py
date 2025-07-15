@@ -32,15 +32,18 @@ class AktivitasCreate(AktivitasBase):
                 if not data.get('tanggalMulai') or not data.get('tanggalSelesai'):
                     raise ValueError('Tanggal Mulai dan Tanggal Selesai wajib diisi jika menggunakan rentang tanggal.')
             else:
-                if not data.get('tanggal'):
+                if not data.get('tanggalMulai'):
                     raise ValueError('Tanggal Pelaksanaan wajib diisi.')
+                
             
             # Validasi Jam
             use_time = data.get('useTime')
             if use_time:
                 if not data.get('jamMulai') or not data.get('jamSelesai'):
                     raise ValueError('Jam Mulai dan Jam Selesai wajib diisi jika menggunakan jam.')
-
+                if not use_date_range:
+                    if data.get('jamMulai') >= data.get('jamSelesai'):
+                        raise ValueError('Jam Mulai harus sebelum Jam Selesai!')
         return data
 
 # Skema untuk MEMBACA/MENGIRIM data (mengirim data ke Vue)

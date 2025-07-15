@@ -105,8 +105,15 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { reactive, watchEffect, watch } from 'vue';
 
+const props = defineProps({
+  initialData: {
+    type: Object,
+    default: null
+  }
+});
+  
 const emit = defineEmits(['close', 'submit']);
 
 // State untuk form
@@ -114,7 +121,6 @@ const form = reactive({
   namaAktivitas: '',
   deskripsi: '',
   timPenyelenggara: '',
-  tanggal: '',
   useDateRange: false,
   useTime: false,
   tanggalMulai: '',
@@ -123,11 +129,38 @@ const form = reactive({
   jamSelesai: '',
 });
 
+// mengisi form jika ada initialData
+watch(() => props.initialData, (newData) => {
+  if (newData) {
+    form.namaAktivitas = newData.namaAktivitas || '';
+    form.deskripsi = newData.deskripsi || '';
+    form.timPenyelenggara = newData.timPenyelenggara || '';
+    
+    // Logika pengisian tanggal yang lebih andal
+    const isRange = !!newData.tanggalSelesai;
+    form.useDateRange = isRange;
+    form.tanggalMulai = newData.tanggalMulai?.split('T')[0] || '';
+    form.tanggalSelesai = isRange ? newData.tanggalSelesai?.split('T')[0] || '' : '';
+
+    // Logika pengisian jam
+    form.useTime = !!newData.jamMulai;
+    form.jamMulai = newData.jamMulai || '';
+    form.jamSelesai = newData.jamSelesai || '';
+  }
+}, { immediate: true }); // 'immediate: true' agar berjalan saat komponen pertama kali dibuat
+
+
+watch(() => form.useDateRange, (isRange) => {
+  // Jika checkbox di-uncheck, kosongkan tanggalSelesai
+  if (!isRange) {
+    form.tanggalSelesai = '';
+  }
+});
+
 // State untuk menampung pesan error
 const errors = reactive({
   namaAktivitas: null,
   timPenyelenggara: null,
-  tanggal: null,
   tanggalMulai: null,
   tanggalSelesai: null,
   jamMulai: null,
@@ -140,35 +173,29 @@ const validate = () => {
   Object.keys(errors).forEach(key => errors[key] = null);
   let isValid = true;
 
-  // Rule 1: Wajib diisi
-  if (!form.namaAktivitas) {
-    errors.namaAktivitas = 'Nama aktivitas wajib diisi.';
-    isValid = false;
-  }
-  if (!form.timPenyelenggara) {
-    errors.timPenyelenggara = 'Tim penyelenggara wajib dipilih.';
-    isValid = false;
-  }
-
-  // Rule 2: Validasi tanggal
+  if (!form.namaAktivitas) { errors.namaAktivitas = 'Wajib diisi.'; isValid = false; }
+  if (!form.timPenyelenggara) { errors.timPenyelenggara = 'Wajib dipilih.'; isValid = false; }
+  
+  // Hanya ada satu field tanggal utama sekarang
+  if (!form.tanggalMulai) { errors.tanggalMulai = 'Wajib diisi.'; isValid = false; }
+  
   if (form.useDateRange) {
-    if (!form.tanggalMulai) { errors.tanggalMulai = 'Wajib diisi.'; isValid = false; }
     if (!form.tanggalSelesai) { errors.tanggalSelesai = 'Wajib diisi.'; isValid = false; }
     if (form.tanggalMulai && form.tanggalSelesai && form.tanggalSelesai < form.tanggalMulai) {
       errors.tanggalSelesai = 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
       isValid = false;
     }
-  } else {
-    if (!form.tanggalMulai) { errors.tanggalMulai = 'Wajib diisi.'; isValid = false; }
-  }
+  } 
 
   // Rule 3: Validasi jam
   if (form.useTime) {
     if (!form.jamMulai) { errors.jamMulai = 'Wajib diisi.'; isValid = false; }
     if (!form.jamSelesai) { errors.jamSelesai = 'Wajib diisi.'; isValid = false; }
-    if (form.jamMulai && form.jamSelesai && form.tanggalMulai === form.tanggalSelesai && form.jamSelesai < form.jamMulai) {
-      errors.jamSelesai = 'Jam selesai tidak boleh sebelum jam mulai (di hari yang sama).';
-      isValid = false;
+    if (!form.useDateRange){
+      if (form.jamSelesai <= form.jamMulai) {
+        errors.jamSelesai = 'Jam selesai harus setelah jam mulai (di hari yang sama).';
+        isValid = false;
+      }
     }
   }
   
@@ -177,10 +204,8 @@ const validate = () => {
 
 const handleSubmit = () => {
   if (validate()) {
-    // Jika valid, kirim event submit ke parent
     emit('submit', form);
   }
-  // Jika tidak valid, tidak lakukan apa-apa. Pesan error akan otomatis tampil.
 };
 </script>
 
