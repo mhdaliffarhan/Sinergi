@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6">
+  <div>
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-green-700 dark:text-green-500">Dashboard Aktivitas</h1>

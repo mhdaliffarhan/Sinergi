@@ -10,7 +10,7 @@
 
         <Header />
 
-        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 pt-16">
+        <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50 dark:bg-gray-900 pt-16 p-6 pt-20 md:px-16">
           <router-view />
         </main>
       </div>

@@ -1,5 +1,8 @@
 <template>
-  <router-link to="/detail/1" class="block p-4 mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200">
+  <router-link 
+    :to="{ name: 'aktivitas-detail', params: { id: id } }"  
+    class="block p-4 mb-4 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
+  >
     <h3 class="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
       {{ namaAktivitas }}
     </h3>
@@ -21,6 +24,7 @@
 import { computed } from 'vue';
 
 const props = defineProps({
+  id: { type: Number, required: true },
   namaAktivitas: { type: String, required: true },
   timPenyelenggara: { type: String },
   tanggalMulai: { type: String },
