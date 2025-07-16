@@ -17,6 +17,9 @@ class Aktivitas(Base):
 
     dokumen = relationship("Dokumen", back_populates="aktivitas", cascade="all, delete-orphan")
 
+    # Relasi ke tabel daftar dokumen wajib
+    daftar_dokumen_wajib = relationship("DaftarDokumen", back_populates="aktivitas", cascade="all, delete-orphan")
+
     # --- KELAS BARU UNTUK TABEL DOKUMEN ---
 class Dokumen(Base):
     __tablename__ = "dokumen"
@@ -34,3 +37,16 @@ class Dokumen(Base):
 
     # Tambahkan relasi ini untuk menghubungkan kembali ke Aktivitas
     aktivitas = relationship("Aktivitas", back_populates="dokumen")
+
+class DaftarDokumen(Base):
+    __tablename__ = "daftar_dokumen"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nama_dokumen = Column(String, nullable=False)
+    status = Column(String(50), nullable=False, default='Wajib Diunggah')
+    
+    # Kunci asing yang menghubungkan ke tabel aktivitas
+    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
+
+    # Hubungkan kembali ke model Aktivitas
+    aktivitas = relationship("Aktivitas", back_populates="daftar_dokumen_wajib")

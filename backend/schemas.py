@@ -2,6 +2,17 @@ from pydantic import BaseModel, model_validator, Field, ConfigDict
 from typing import Optional, Any, List
 from datetime import date, time, datetime
 
+# --- SKEMA DAFTAR DOKUMEN WAJIB ---
+class DaftarDokumen(BaseModel):
+    id: int
+    namaDokumen: str = Field(alias='nama_dokumen')
+    status: str
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+    )
+
 class AktivitasBase(BaseModel):
     # Field didefinisikan dengan camelCase agar sesuai dengan standar API/JSON
     namaAktivitas: str
@@ -17,9 +28,9 @@ class AktivitasBase(BaseModel):
 
 # Skema untuk MEMBUAT aktivitas (menerima data dari Vue)
 class AktivitasCreate(AktivitasBase):
-    # Hilangkan Optional untuk membuatnya wajib diisi
     namaAktivitas: str
     timPenyelenggara: str
+    daftarDokumenWajib: List[str] = []
 
     @model_validator(mode='before')
     @classmethod
@@ -44,6 +55,7 @@ class AktivitasCreate(AktivitasBase):
                     if data.get('jamMulai') >= data.get('jamSelesai'):
                         raise ValueError('Jam Mulai harus sebelum Jam Selesai!')
         return data
+    
 class DokumenBase(BaseModel):
     keterangan: str
     tipe: str # 'FILE' atau 'LINK'
@@ -81,7 +93,11 @@ class Aktivitas(BaseModel):
 
     dokumenList: List[Dokumen] = Field(default=[], alias='dokumen')
 
+    daftarDokumenWajib: List[DaftarDokumen] = Field(default=[], alias='daftar_dokumen_wajib')
+
     model_config = ConfigDict(
         from_attributes=True,
         populate_by_name=True,
     )
+
+

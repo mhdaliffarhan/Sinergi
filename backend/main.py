@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Response,  File, UploadFile, Form
+from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload  
 from typing import List,  Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,30 +40,61 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Hapus response_model_by_alias karena kita sudah menangani alias di skema
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
-def get_semua_aktivitas(db: Session = Depends(get_db)):
-    semua_aktivitas = db.query(models.Aktivitas).order_by(models.Aktivitas.id.desc()).all()
+def get_semua_aktivitas(db: Session = Depends(get_db), q: Optional[str] = None):
+    # Query dasar dengan eager loading dokumen
+    query = db.query(models.Aktivitas).options(joinedload(models.Aktivitas.dokumen))
+
+    # Jika ada parameter pencarian 'q'
+    if q:
+        search_term = f"%{q}%"
+        # Lakukan join dengan tabel dokumen agar bisa mencari di sana
+        query = query.outerjoin(models.Dokumen)
+        # Filter berdasarkan beberapa kolom sekaligus
+        query = query.filter(
+            or_(
+                models.Aktivitas.nama_aktivitas.ilike(search_term),
+                models.Aktivitas.deskripsi.ilike(search_term),
+                models.Aktivitas.tim_penyelenggara.ilike(search_term),
+                models.Dokumen.keterangan.ilike(search_term),
+                models.Dokumen.nama_file_asli.ilike(search_term)
+            )
+        ).distinct() # Gunakan distinct agar aktivitas tidak muncul berulang
+
+    # Urutkan berdasarkan ID terbaru dan ambil semua hasilnya
+    semua_aktivitas = query.order_by(models.Aktivitas.id.desc()).all()
     return semua_aktivitas
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
 def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
-    # Buat dictionary baru untuk memastikan pemetaan yang benar
-    # dari camelCase (Pydantic) ke snake_case (SQLAlchemy)
-    aktivitas_data_for_db = {
-        "nama_aktivitas": aktivitas.namaAktivitas,
-        "deskripsi": aktivitas.deskripsi,
-        "tim_penyelenggara": aktivitas.timPenyelenggara,
-        "tanggal_mulai": aktivitas.tanggalMulai,
-        "tanggal_selesai": aktivitas.tanggalSelesai,
-        "jam_mulai": aktivitas.jamMulai,
-        "jam_selesai": aktivitas.jamSelesai,
-    }
+    # 1. Buat objek utama Aktivitas, mapping dari camelCase ke snake_case
+    # Kita belum menyimpannya, hanya membuat objeknya di Python
+    db_aktivitas = models.Aktivitas(
+        nama_aktivitas=aktivitas.namaAktivitas,
+        deskripsi=aktivitas.deskripsi,
+        tim_penyelenggara=aktivitas.timPenyelenggara,
+        jam_mulai=aktivitas.jamMulai,
+        jam_selesai=aktivitas.jamSelesai
+    )
 
-    # Buat objek database dari dictionary di atas
-    db_aktivitas = models.Aktivitas(**aktivitas_data_for_db)
+    # Logika untuk tanggal
+    if aktivitas.useDateRange:
+        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
+        db_aktivitas.tanggal_selesai = aktivitas.tanggalSelesai
+    else:
+        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
     
+    # 2. Loop melalui daftar nama dokumen dan tambahkan ke relasi
+    for nama_dok in aktivitas.daftarDokumenWajib:
+        if nama_dok: # Pastikan string tidak kosong
+            db_daftar_dokumen = models.DaftarDokumen(nama_dokumen=nama_dok)
+            # Hubungkan langsung ke objek aktivitas utama
+            db_aktivitas.daftar_dokumen_wajib.append(db_daftar_dokumen)
+
+    # 3. Simpan semuanya ke database dalam SATU KALI transaksi
     db.add(db_aktivitas)
     db.commit()
     db.refresh(db_aktivitas)
+    
     return db_aktivitas
 
 # --- ENDPOINT MENGAMBIL DETAIL AKTIVITAS ---
@@ -70,7 +102,8 @@ def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(g
 def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(get_db)):
     # Query database untuk mencari aktivitas dengan ID yang sesuai
     db_aktivitas = db.query(models.Aktivitas).options(
-        joinedload(models.Aktivitas.dokumen)
+        joinedload(models.Aktivitas.dokumen),
+        joinedload(models.Aktivitas.daftar_dokumen_wajib)
     ).filter(models.Aktivitas.id == aktivitas_id).first()
     
     # Jika aktivitas tidak ditemukan, kirim error 404
