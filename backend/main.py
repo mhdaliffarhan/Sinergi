@@ -232,6 +232,8 @@ def delete_dokumen(dokumen_id: int, db: Session = Depends(get_db)):
 # --- ENDPOINT MENAMBAHKAN LINK ---
 @app.post("/api/aktivitas/{aktivitas_id}/link", response_model=schemas.Dokumen)
 def add_link_untuk_aktivitas(
+
+
     aktivitas_id: int,
     link_data: schemas.DokumenCreate, # Kita akan gunakan kembali skema ini
     db: Session = Depends(get_db)
@@ -252,5 +254,47 @@ def add_link_untuk_aktivitas(
     db.add(db_dokumen)
     db.commit()
     db.refresh(db_dokumen)
+    
+    return db_dokumen
+
+#--- ENDPOINT MENGUNGGAH FILE KE CHECKLIST ---
+@app.post("/api/checklist/{item_id}/upload", response_model=schemas.Dokumen)
+def upload_for_checklist_item(
+    item_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # 1. Cari item checklist di database
+    db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == item_id).first()
+    if not db_checklist_item:
+        raise HTTPException(status_code=404, detail="Item checklist tidak ditemukan")
+
+    # 2. Simpan file fisik (logika ini sama seperti sebelumnya)
+    file_extension = file.filename.split(".")[-1]
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    finally:
+        file.file.close()
+
+    # 3. Buat entri baru di tabel 'dokumen'
+    db_dokumen = models.Dokumen(
+        aktivitas_id=db_checklist_item.aktivitas_id,
+        keterangan=db_checklist_item.nama_dokumen, # Gunakan nama checklist sebagai keterangan default
+        tipe='FILE',
+        path_atau_url=file_location,
+        nama_file_asli=file.filename,
+        tipe_file_mime=file.content_type
+    )
+    db.add(db_dokumen)
+    db.commit()
+    db.refresh(db_dokumen)
+
+    # 4. Perbarui item checklist dengan status baru dan ID dokumen
+    db_checklist_item.status = 'Selesai'
+    db_checklist_item.dokumen_id = db_dokumen.id
+    db.commit()
     
     return db_dokumen

@@ -30,6 +30,24 @@
 
         <hr class="my-6 border-gray-200 dark:border-gray-700">
 
+         <div class="mb-6">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Checklist Kelengkapan Dokumen</h2>
+          <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden">
+          
+          <div v-if="aktivitas.daftarDokumenWajib && aktivitas.daftarDokumenWajib.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+            <ChecklistItem
+              v-for="item in aktivitas.daftarDokumenWajib"
+              :key="item.id"
+              :item="item"
+              @upload="handleUploadRequest"
+            />
+          </div>
+          <div v-else>
+            <p class="text-sm text-center text-gray-500 dark:text-gray-400">Tidak ada daftar dokumen wajib untuk aktivitas ini.</p>
+          </div>
+        </div>
+
+
         <div class="mb-6">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link Terkait</h2>
@@ -80,6 +98,7 @@ import DokumenItem from '@/components/DokumenItem.vue';
 import FormTambahLink from '@/components/FormTambahLink.vue';
 import DropzoneUploader from '@/components/DropzoneUploader.vue';
 import FormKonfirmasiDokumen from '@/components/FormKonfirmasiDokumen.vue';
+import ChecklistItem from '@/components/ChecklistItem.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -97,6 +116,9 @@ const isEditModalOpen = ref(false);
 const isLinkModalOpen = ref(false);
 const isFileModalOpen = ref(false);
 const fileToUpload = ref(null);
+
+const fileInput = ref(null); // 
+const checklistItemIdToUpload = ref(null); // State baru untuk menyimpan ID item yang akan di-upload
 
 const files = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'FILE') || []);
 const links = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'LINK') || []);
@@ -213,6 +235,36 @@ const handleFileUploadSubmit = async (formData) => {
     closeFileModal();
     await fetchDetailAktivitas();
   } catch (error) { toast.error("Gagal mengunggah file."); }
+};
+
+// 1. Fungsi ini dipanggil saat tombol "Upload" di ChecklistItem diklik
+const handleUploadRequest = (itemId) => {
+  checklistItemIdToUpload.value = itemId; // Simpan ID itemnya
+  fileInput.value.click(); // Buka dialog pilih file
+};
+
+// 2. Fungsi ini berjalan setelah pengguna memilih file
+const handleFileSelect = async (event) => {
+  const file = event.target.files[0];
+  if (!file || !checklistItemIdToUpload.value) return;
+
+  const data = new FormData();
+  data.append('file', file);
+
+  try {
+    // Panggil endpoint baru dengan ID item checklist
+    await axios.post(`http://127.0.0.1:8000/api/checklist/${checklistItemIdToUpload.value}/upload`, data);
+    
+    toast.success("Dokumen berhasil diunggah dan checklist diperbarui!");
+    await fetchDetailAktivitas(); // Refresh data untuk melihat status baru
+  } catch (error) {
+    toast.error("Gagal mengunggah file.");
+    console.error(error);
+  } finally {
+    // Reset state setelah selesai
+    checklistItemIdToUpload.value = null;
+    event.target.value = '';
+  }
 };
 
 onMounted(() => {

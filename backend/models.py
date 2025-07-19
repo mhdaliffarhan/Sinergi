@@ -49,4 +49,5 @@ class DaftarDokumen(Base):
     aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
 
     # Hubungkan kembali ke model Aktivitas
+    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
     aktivitas = relationship("Aktivitas", back_populates="daftar_dokumen_wajib")
