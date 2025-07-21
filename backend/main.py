@@ -116,7 +116,9 @@ def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(get_db)):
 # --- ENDPOINT MENGUPDATE AKTIVITAS ---
 @app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
 def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
-    db_aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
+    db_aktivitas = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.daftar_dokumen_wajib)
+    ).filter(models.Aktivitas.id == aktivitas_id).first()
 
     if db_aktivitas is None:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
@@ -141,7 +143,25 @@ def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: 
     else:
         db_aktivitas.jam_mulai = None
         db_aktivitas.jam_selesai = None
-        
+    
+    # Siapkan daftar nama dokumen dari database dan dari form
+    existing_doc_names = {doc.nama_dokumen for doc in db_aktivitas.daftar_dokumen_wajib}
+    incoming_doc_names = set(aktivitas.daftarDokumenWajib)
+
+    # Hapus item yang tidak ada lagi di form
+    docs_to_delete = [doc for doc in db_aktivitas.daftar_dokumen_wajib if doc.nama_dokumen not in incoming_doc_names]
+    for doc in docs_to_delete:
+        db.delete(doc)
+
+    # Tambahkan item baru dari form
+    docs_to_add = incoming_doc_names - existing_doc_names
+    for doc_name in docs_to_add:
+        new_doc = models.DaftarDokumen(
+            nama_dokumen=doc_name,
+            aktivitas_id=aktivitas_id
+        )
+        db.add(new_doc)
+
     db.commit()
     db.refresh(db_aktivitas)
     return db_aktivitas
@@ -166,30 +186,29 @@ def delete_aktivitas(aktivitas_id: int, db: Session = Depends(get_db)):
 
 # --- ENDPOINT UPLOAD DOKUMEN ---
 @app.post("/api/aktivitas/{aktivitas_id}/dokumen", response_model=schemas.Dokumen)
-def upload_dokumen_untuk_aktivitas(
+def create_dokumen_untuk_aktivitas(
     aktivitas_id: int,
     keterangan: str = Form(...),
-    file: UploadFile = File(...), # Menerima file
+    checklist_item_id: Optional[int] = Form(None),
+    file: UploadFile = File(...),
     db: Session = Depends(get_db)
-):
-    # Cek dulu apakah aktivitasnya ada
+    ):
+    # Cek aktivitas (tidak berubah)
     aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
     if not aktivitas:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
 
-    # Buat nama file yang unik untuk menghindari duplikasi
+    # Simpan file fisik (tidak berubah)
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
     file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
-
-    # Simpan file ke server
     try:
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)
     finally:
         file.file.close()
 
-    # Simpan informasi file ke database
+     # 1. Buat dan SIMPAN entri di tabel 'dokumen' terlebih dahulu
     db_dokumen = models.Dokumen(
         aktivitas_id=aktivitas_id,
         keterangan=keterangan,
@@ -198,36 +217,20 @@ def upload_dokumen_untuk_aktivitas(
         nama_file_asli=file.filename,
         tipe_file_mime=file.content_type
     )
-
     db.add(db_dokumen)
     db.commit()
-    db.refresh(db_dokumen)
+    db.refresh(db_dokumen) # Refresh untuk memastikan db_dokumen.id sudah ada
+
+    # 2. JIKA ada checklist_item_id, BARU perbarui item checklist
+    if checklist_item_id:
+        db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == checklist_item_id).first()
+        if db_checklist_item:
+            db_checklist_item.status = 'Selesai'
+            # Sekarang kita bisa pastikan db_dokumen.id sudah memiliki nilai
+            db_checklist_item.dokumen_id = db_dokumen.id
+            db.commit() # Commit perubahan pada item checklist
     
     return db_dokumen
-
-# --- ENDPOIN MENGHAPUS DOKUMEN ---
-@app.delete("/api/dokumen/{dokumen_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_dokumen(dokumen_id: int, db: Session = Depends(get_db)):
-    
-    # 1. Cari data dokumen di database
-    db_dokumen = db.query(models.Dokumen).filter(models.Dokumen.id == dokumen_id).first()
-    
-    # Jika tidak ditemukan, kirim error 404
-    if db_dokumen is None:
-        raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan")
-
-    # 2. Hapus file fisik dari folder 'uploads' jika tipenya 'FILE'
-    if db_dokumen.tipe == 'FILE':
-        file_path = db_dokumen.path_atau_url
-        if os.path.exists(file_path):
-            os.remove(file_path)
-            
-    # 3. Hapus data dari database
-    db.delete(db_dokumen)
-    db.commit()
-    
-    # 4. Kembalikan respons tanpa konten
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # --- ENDPOINT MENAMBAHKAN LINK ---
 @app.post("/api/aktivitas/{aktivitas_id}/link", response_model=schemas.Dokumen)
@@ -257,44 +260,35 @@ def add_link_untuk_aktivitas(
     
     return db_dokumen
 
-#--- ENDPOINT MENGUNGGAH FILE KE CHECKLIST ---
-@app.post("/api/checklist/{item_id}/upload", response_model=schemas.Dokumen)
-def upload_for_checklist_item(
-    item_id: int,
-    file: UploadFile = File(...),
-    db: Session = Depends(get_db)
-):
-    # 1. Cari item checklist di database
-    db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == item_id).first()
-    if not db_checklist_item:
-        raise HTTPException(status_code=404, detail="Item checklist tidak ditemukan")
+# --- ENDPOIN MENGHAPUS DOKUMEN ---
+@app.delete("/api/dokumen/{dokumen_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_dokumen(dokumen_id: int, db: Session = Depends(get_db)):
+    db_dokumen = db.query(models.Dokumen).filter(models.Dokumen.id == dokumen_id).first()
+    
+    if db_dokumen is None:
+        raise HTTPException(status_code=404, detail="Dokumen tidak ditemukan")
 
-    # 2. Simpan file fisik (logika ini sama seperti sebelumnya)
-    file_extension = file.filename.split(".")[-1]
-    unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
-    try:
-        with open(file_location, "wb+") as file_object:
-            shutil.copyfileobj(file.file, file_object)
-    finally:
-        file.file.close()
-
-    # 3. Buat entri baru di tabel 'dokumen'
-    db_dokumen = models.Dokumen(
-        aktivitas_id=db_checklist_item.aktivitas_id,
-        keterangan=db_checklist_item.nama_dokumen, # Gunakan nama checklist sebagai keterangan default
-        tipe='FILE',
-        path_atau_url=file_location,
-        nama_file_asli=file.filename,
-        tipe_file_mime=file.content_type
-    )
-    db.add(db_dokumen)
-    db.commit()
-    db.refresh(db_dokumen)
-
-    # 4. Perbarui item checklist dengan status baru dan ID dokumen
-    db_checklist_item.status = 'Selesai'
-    db_checklist_item.dokumen_id = db_dokumen.id
+    # --- LOGIKA BARU: PERBARUI CHECKLIST ---
+    db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.dokumen_id == dokumen_id).first()
+    
+    # 3. Jika ada, reset status dan tautannya
+    if db_checklist_item:
+        db_checklist_item.status = 'Wajib Diunggah'
+        db_checklist_item.dokumen_id = None
+        
+    # 4. Hapus file fisik dari folder 'uploads' jika tipenya 'FILE'
+    if db_dokumen.tipe == 'FILE':
+        file_path = db_dokumen.path_atau_url
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            
+    # 5. Hapus data dari tabel 'dokumen'
+    db.delete(db_dokumen)
+    
+    # 6. Simpan semua perubahan (update checklist dan delete dokumen)
     db.commit()
     
-    return db_dokumen
+    # 4. Kembalikan respons tanpa konten
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+

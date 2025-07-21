@@ -50,21 +50,14 @@
 
         <div class="mb-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link Terkait</h2>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen</h2>
             <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">+ Tambah Link</button>
           </div>
-          <div v-if="links.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-            <DokumenItem v-for="link in links" :key="link.id" :dokumen="link" @hapus="confirmDeleteDokumen" />
+          <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+            <DokumenItem v-for="doc in otherDocuments" :key="doc.id" :dokumen="doc" @hapus="confirmDeleteDokumen" />
           </div>
           <div v-else class="p-4 text-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
             <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada link yang ditambahkan.</p>
-          </div>
-        </div>
-
-        <div>
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Dokumen Terlampir</h2>
-          <div v-if="files.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-            <DokumenItem v-for="file in files" :key="file.id" :dokumen="file" @hapus="confirmDeleteDokumen" />
           </div>
           <DropzoneUploader @file-selected="handleFileReadyForUpload" />
         </div>
@@ -81,7 +74,7 @@
       <FormTambahLink @close="closeLinkModal" @submit="handleLinkSubmit" />
     </ModalWrapper>
     <ModalWrapper :show="isFileModalOpen" @close="closeFileModal" title="Konfirmasi Unggah File">
-      <FormKonfirmasiDokumen v-if="fileToUpload" :file="fileToUpload" @close="closeFileModal" @submit="handleFileUploadSubmit" />
+      <FormKonfirmasiDokumen v-if="fileToUpload" :file="fileToUpload" :unfulfilled-items="unfulfilledChecklistItems" @close="closeFileModal" @submit="handleFileUploadSubmit" />
     </ModalWrapper>
   </div>
 </template>
@@ -118,10 +111,17 @@ const isFileModalOpen = ref(false);
 const fileToUpload = ref(null);
 
 const fileInput = ref(null); // 
-const checklistItemIdToUpload = ref(null); // State baru untuk menyimpan ID item yang akan di-upload
+const checklistItemIdToUpload = ref(null);
 
 const files = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'FILE') || []);
 const links = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'LINK') || []);
+const unfulfilledChecklistItems = computed(() => 
+  aktivitas.value?.daftarDokumenWajib?.filter(item => item.status !== 'Selesai') || []
+);
+const otherDocuments = computed(() => {
+  const checklistDocIds = new Set(aktivitas.value?.daftarDokumenWajib?.map(item => item.dokumenId).filter(id => id != null));
+  return aktivitas.value?.dokumen?.filter(doc => !checklistDocIds.has(doc.id)) || [];
+});
 const formattedWaktuPelaksanaan = computed(() => {
   if (!aktivitas.value || !aktivitas.value.tanggalMulai) return { tanggal: 'Tanggal belum ditentukan', waktu: '' };
   const options = { day: 'numeric', month: 'long', year: 'numeric' };
@@ -143,8 +143,6 @@ const formattedWaktuPelaksanaan = computed(() => {
   }
   return { tanggal: tanggalTampil, waktu: waktuTampil };
 });
-
-
 const snakeToCamel = (str) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
 const convertKeysToCamelCase = (obj) => {
   if (obj === null || typeof obj !== 'object') return obj;
@@ -157,7 +155,6 @@ const convertKeysToCamelCase = (obj) => {
   }
   return newObj;
 };
-
 const fetchDetailAktivitas = async () => {
   isLoading.value = true;
   try {
@@ -171,7 +168,6 @@ const fetchDetailAktivitas = async () => {
     isLoading.value = false;
   }
 };
-
 const openEditModal = () => { isEditModalOpen.value = true; };
 const closeEditModal = () => { isEditModalOpen.value = false; };
 const handleUpdateActivity = async (formData) => {
@@ -211,8 +207,7 @@ const openLinkModal = () => { isLinkModalOpen.value = true; };
 const closeLinkModal = () => { isLinkModalOpen.value = false; };
 const handleLinkSubmit = async (formData) => {
   try {
-    const payload = { ...formData, tipe: 'LINK' };
-    await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/link`, payload, { headers: { 'Content-Type': 'application/json' }});
+    await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/link`, { ...formData, tipe: 'LINK' });
     toast.success("Link berhasil ditambahkan.");
     closeLinkModal();
     await fetchDetailAktivitas();
@@ -228,13 +223,17 @@ const handleFileUploadSubmit = async (formData) => {
   const data = new FormData();
   data.append('file', formData.file);
   data.append('keterangan', formData.keterangan);
-  data.append('tipe', 'FILE');
+  if (formData.checklistItemId) {
+    data.append('checklist_item_id', formData.checklistItemId);
+    console.log('ada checklist item', formData.checklistItemId);
+  }
+  
   try {
     await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/dokumen`, data);
     toast.success("File berhasil diunggah.");
     closeFileModal();
     await fetchDetailAktivitas();
-  } catch (error) { toast.error("Gagal mengunggah file."); }
+  } catch (error) { toast.error("Gagal mengunggah file"); }
 };
 
 // 1. Fungsi ini dipanggil saat tombol "Upload" di ChecklistItem diklik
@@ -262,6 +261,25 @@ const handleFileSelect = async (event) => {
     console.error(error);
   } finally {
     // Reset state setelah selesai
+    checklistItemIdToUpload.value = null;
+    event.target.value = '';
+  }
+};
+
+const handleFileSelectedForChecklist = async (event) => {
+  const file = event.target.files[0];
+  if (!file || !checklistItemIdToUpload.value) return;
+
+  const data = new FormData();
+  data.append('file', file);
+
+  try {
+    await axios.post(`http://127.0.0.1:8000/api/checklist/${checklistItemIdToUpload.value}/upload`, data);
+    toast.success("Dokumen berhasil diunggah dan checklist diperbarui!");
+    await fetchDetailAktivitas();
+  } catch (error) {
+    toast.error("Gagal mengunggah file.");
+  } finally {
     checklistItemIdToUpload.value = null;
     event.target.value = '';
   }
