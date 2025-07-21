@@ -32,14 +32,17 @@
 
          <div class="mb-6">
           <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Checklist Kelengkapan Dokumen</h2>
-          <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden">
-          
+
+          <input type="file" ref="fileInputChecklist" @change="handleFileSelectedForChecklist" class="hidden">
+          <input type="file" ref="replaceFileInput" @change="handleReplaceFileSelected" class="hidden">
+
           <div v-if="aktivitas.daftarDokumenWajib && aktivitas.daftarDokumenWajib.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <ChecklistItem
               v-for="item in aktivitas.daftarDokumenWajib"
               :key="item.id"
               :item="item"
-              @upload="handleUploadRequest"
+              @unggah="handleUploadRequest"
+              @ganti="handleGantiRequest"
             />
           </div>
           <div v-else>
@@ -50,14 +53,11 @@
 
         <div class="mb-6">
           <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen</h2>
-            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">+ Tambah Link</button>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
+            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium ...">+ Tambah Link</button>
           </div>
-          <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
+          <div v-if="otherDocuments.length > 0" class="border ... rounded-lg divide-y ...">
             <DokumenItem v-for="doc in otherDocuments" :key="doc.id" :dokumen="doc" @hapus="confirmDeleteDokumen" />
-          </div>
-          <div v-else class="p-4 text-center border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-            <p class="text-sm text-gray-500 dark:text-gray-400">Belum ada link yang ditambahkan.</p>
           </div>
           <DropzoneUploader @file-selected="handleFileReadyForUpload" />
         </div>
@@ -76,6 +76,9 @@
     <ModalWrapper :show="isFileModalOpen" @close="closeFileModal" title="Konfirmasi Unggah File">
       <FormKonfirmasiDokumen v-if="fileToUpload" :file="fileToUpload" :unfulfilled-items="unfulfilledChecklistItems" @close="closeFileModal" @submit="handleFileUploadSubmit" />
     </ModalWrapper>
+    <ModalWrapper :show="isReplaceModalOpen" @close="closeReplaceModal" title="Ganti File Dokumen">
+      <ModalKonfirmasiGantiFile @pilih="handleReplaceActionChosen" />
+    </ModalWrapper>
   </div>
 </template>
 
@@ -92,6 +95,7 @@ import FormTambahLink from '@/components/FormTambahLink.vue';
 import DropzoneUploader from '@/components/DropzoneUploader.vue';
 import FormKonfirmasiDokumen from '@/components/FormKonfirmasiDokumen.vue';
 import ChecklistItem from '@/components/ChecklistItem.vue';
+import ModalKonfirmasiGantiFile from '@/components/ModalKonfirmasiGantiFile.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -110,8 +114,13 @@ const isLinkModalOpen = ref(false);
 const isFileModalOpen = ref(false);
 const fileToUpload = ref(null);
 
-const fileInput = ref(null); // 
+const fileInputChecklist = ref(null); 
 const checklistItemIdToUpload = ref(null);
+
+const isReplaceModalOpen = ref(false);
+const itemToReplace = ref(null);
+const replaceFileInput = ref(null);
+
 
 const files = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'FILE') || []);
 const links = computed(() => aktivitas.value?.dokumen?.filter(d => d.tipe === 'LINK') || []);
@@ -239,51 +248,92 @@ const handleFileUploadSubmit = async (formData) => {
 // 1. Fungsi ini dipanggil saat tombol "Upload" di ChecklistItem diklik
 const handleUploadRequest = (itemId) => {
   checklistItemIdToUpload.value = itemId; // Simpan ID itemnya
-  fileInput.value.click(); // Buka dialog pilih file
+  fileInputChecklist.value.click(); // Buka dialog pilih file
 };
 
-// 2. Fungsi ini berjalan setelah pengguna memilih file
-const handleFileSelect = async (event) => {
+const handleFileSelectedForChecklist = async (event) => {
+  // 1. Ambil file yang dipilih dari input
   const file = event.target.files[0];
-  if (!file || !checklistItemIdToUpload.value) return;
 
+  // 2. Pastikan ada file yang dipilih & kita tahu untuk checklist item mana
+  if (!file || !checklistItemIdToUpload.value) {
+    event.target.value = ''; // Reset input jika dibatalkan
+    return;
+  }
+
+  // 3. Temukan nama item checklist untuk dijadikan keterangan default
+  const checklistItem = aktivitas.value.daftarDokumenWajib.find(
+    item => item.id === checklistItemIdToUpload.value
+  );
+  const keterangan = checklistItem ? checklistItem.namaDokumen : 'Dokumen Checklist';
+
+  // 4. Siapkan data untuk dikirim ke backend
   const data = new FormData();
   data.append('file', file);
-
+  data.append('keterangan', keterangan);
+  data.append('checklist_item_id', checklistItemIdToUpload.value);
+  
   try {
-    // Panggil endpoint baru dengan ID item checklist
-    await axios.post(`http://127.0.0.1:8000/api/checklist/${checklistItemIdToUpload.value}/upload`, data);
+    // 5. Panggil endpoint upload DOKUMEN yang cerdas
+    await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/dokumen`, data);
     
-    toast.success("Dokumen berhasil diunggah dan checklist diperbarui!");
-    await fetchDetailAktivitas(); // Refresh data untuk melihat status baru
+    toast.success(`Dokumen "${keterangan}" berhasil diunggah!`);
+    await fetchDetailAktivitas(); // Muat ulang data untuk melihat status baru
   } catch (error) {
     toast.error("Gagal mengunggah file.");
     console.error(error);
   } finally {
-    // Reset state setelah selesai
+    // 6. Reset state setelah selesai
     checklistItemIdToUpload.value = null;
-    event.target.value = '';
+    event.target.value = ''; // Reset input file agar bisa memilih file yang sama lagi
   }
 };
 
-const handleFileSelectedForChecklist = async (event) => {
-  const file = event.target.files[0];
-  if (!file || !checklistItemIdToUpload.value) return;
+const openReplaceModal = () => { isReplaceModalOpen.value = true; };
+const closeReplaceModal = () => { isReplaceModalOpen.value = false; };
 
-  const data = new FormData();
-  data.append('file', file);
+// 1. Dipicu saat tombol 'Ganti File' di ChecklistItem diklik
+const handleGantiRequest = (item) => {
+  itemToReplace.value = item;
+  openReplaceModal();
+};
+
+// 2. Dipicu saat pengguna memilih 'hapus' atau 'unlink' di modal konfirmasi
+const handleReplaceActionChosen = (action) => {
+  if (!itemToReplace.value) return;
+  itemToReplace.value.old_file_action = action;
+  closeReplaceModal();
+  replaceFileInput.value.click(); // Memicu input file pengganti
+};
+
+// 3. Dipicu setelah pengguna memilih file baru
+const handleReplaceFileSelected = async (event) => {
+  const newFile = event.target.files[0];
+  console.log('2. File yang baru dipilih:', newFile);
+  console.log('3. Isi `itemToReplace`:', itemToReplace.value);
+
+  if (!newFile || !itemToReplace.value) return;
+  
+  console.log('terpanggil');
+
+  const data = new FormData(); 
+  data.append('file', newFile);
+  data.append('old_file_action', itemToReplace.value.old_file_action);
 
   try {
-    await axios.post(`http://127.0.0.1:8000/api/checklist/${checklistItemIdToUpload.value}/upload`, data);
-    toast.success("Dokumen berhasil diunggah dan checklist diperbarui!");
+    await axios.post(`http://127.0.0.1:8000/api/checklist/${itemToReplace.value.id}/replace`, data);
+    toast.success("File berhasil diganti!");
     await fetchDetailAktivitas();
   } catch (error) {
-    toast.error("Gagal mengunggah file.");
+    toast.error("Gagal mengganti file.");
+    console.error(error);
   } finally {
-    checklistItemIdToUpload.value = null;
+    itemToReplace.value = null;
     event.target.value = '';
   }
 };
+
+
 
 onMounted(() => {
   fetchDetailAktivitas();

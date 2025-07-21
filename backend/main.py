@@ -260,6 +260,62 @@ def add_link_untuk_aktivitas(
     
     return db_dokumen
 
+# --- ENDPOINT BARU UNTUK MENGGANTI FILE DI CHECKLIST ---
+@app.post("/api/checklist/{item_id}/replace", response_model=schemas.Dokumen)
+def replace_checklist_dokumen(
+    item_id: int,
+    old_file_action: str = Form(...), # Menerima 'hapus' atau 'unlink'
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    # 1. Cari item checklist yang akan diupdate
+    db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == item_id).first()
+    if not db_checklist_item:
+        raise HTTPException(status_code=404, detail="Item checklist tidak ditemukan")
+
+    # Simpan ID dokumen lama sebelum diubah
+    old_dokumen_id = db_checklist_item.dokumen_id
+
+    # 2. Simpan file baru dan buat entri dokumen baru (logika sama seperti upload)
+    file_extension = file.filename.split(".")[-1]
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    finally:
+        file.file.close()
+    
+    new_db_dokumen = models.Dokumen(
+        aktivitas_id=db_checklist_item.aktivitas_id,
+        keterangan=db_checklist_item.nama_dokumen,
+        tipe='FILE',
+        path_atau_url=file_location,
+        nama_file_asli=file.filename,
+        tipe_file_mime=file.content_type
+    )
+    db.add(new_db_dokumen)
+    db.flush() # Gunakan flush untuk mendapatkan ID dari dokumen baru
+
+    # 3. Update item checklist untuk menunjuk ke dokumen baru
+    db_checklist_item.dokumen_id = new_db_dokumen.id
+
+    # 4. Proses dokumen lama berdasarkan aksi yang dipilih
+    if old_dokumen_id and old_file_action == 'hapus':
+        old_db_dokumen = db.query(models.Dokumen).filter(models.Dokumen.id == old_dokumen_id).first()
+        if old_db_dokumen:
+            # Hapus file fisik
+            if os.path.exists(old_db_dokumen.path_atau_url):
+                os.remove(old_db_dokumen.path_atau_url)
+            # Hapus catatan dari database
+            db.delete(old_db_dokumen)
+    
+    # 5. Commit semua perubahan
+    db.commit()
+    db.refresh(new_db_dokumen)
+    
+    return new_db_dokumen
+
 # --- ENDPOIN MENGHAPUS DOKUMEN ---
 @app.delete("/api/dokumen/{dokumen_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_dokumen(dokumen_id: int, db: Session = Depends(get_db)):
