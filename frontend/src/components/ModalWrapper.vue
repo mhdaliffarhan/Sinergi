@@ -5,9 +5,9 @@
         @click="$emit('close')" 
         class="absolute inset-0 bg-black/60"
       ></div>
-
-      <div class="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl flex flex-col">
-        <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+  
+      <div class="relative w-full max-w-lg bg-white dark:bg-gray-800 rounded-xl shadow-xl flex flex-col max-h-[90vh]">
+        <div class="flex-shrink-0 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
             {{ title }}
           </h3>
@@ -18,8 +18,8 @@
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
-
-        <div class="p-6">
+  
+        <div class="flex-grow p-6 overflow-y-auto">
           <slot />
         </div>
       </div>

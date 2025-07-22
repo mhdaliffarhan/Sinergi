@@ -31,7 +31,10 @@
         <hr class="my-6 border-gray-200 dark:border-gray-700">
 
          <div class="mb-6">
-          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Checklist Kelengkapan Dokumen</h2>
+          <div class="mb-6">
+            <DropzoneUploader @file-selected="handleFileReadyForUpload" />
+          </div>
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Kelengkapan Dokumen</h2>
 
           <input type="file" ref="fileInputChecklist" @change="handleFileSelectedForChecklist" class="hidden">
           <input type="file" ref="replaceFileInput" @change="handleReplaceFileSelected" class="hidden">
@@ -43,6 +46,7 @@
               :item="item"
               @unggah="handleUploadRequest"
               @ganti="handleGantiRequest"
+              @hapus="confirmDeleteDokumen"
             />
           </div>
           <div v-else>
@@ -54,12 +58,12 @@
         <div class="mb-6">
           <div class="flex items-center justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
-            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium ...">+ Tambah Link</button>
+            <button @click="openLinkModal" class="px-3 py-1.5 font-medium text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500">+ Tambah Link</button>
           </div>
-          <div v-if="otherDocuments.length > 0" class="border ... rounded-lg divide-y ...">
+          <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <DokumenItem v-for="doc in otherDocuments" :key="doc.id" :dokumen="doc" @hapus="confirmDeleteDokumen" />
           </div>
-          <DropzoneUploader @file-selected="handleFileReadyForUpload" />
+          
         </div>
       </div>
       <div v-else>
