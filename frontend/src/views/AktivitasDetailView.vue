@@ -93,13 +93,13 @@ import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
-import FormBuatAktivitas from '@/components/FormBuatAktivitas.vue';
-import DokumenItem from '@/components/DokumenItem.vue';
-import FormTambahLink from '@/components/FormTambahLink.vue';
-import DropzoneUploader from '@/components/DropzoneUploader.vue';
-import FormKonfirmasiDokumen from '@/components/FormKonfirmasiDokumen.vue';
-import ChecklistItem from '@/components/ChecklistItem.vue';
-import ModalKonfirmasiGantiFile from '@/components/ModalKonfirmasiGantiFile.vue';
+import FormBuatAktivitas from '@/components/aktivitas/FormBuatAktivitas.vue';
+import DokumenItem from '@/components/aktivitas/DokumenItem.vue';
+import FormTambahLink from '@/components/aktivitas/FormTambahLink.vue';
+import DropzoneUploader from '@/components/aktivitas/DropzoneUploader.vue';
+import FormKonfirmasiDokumen from '@/components/aktivitas/FormKonfirmasiDokumen.vue';
+import ChecklistItem from '@/components/aktivitas/ChecklistItem.vue';
+import ModalKonfirmasiGantiFile from '@/components/aktivitas/ModalKonfirmasiGantiFile.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -109,7 +109,8 @@ const aktivitasId = route.params.id;
 const aktivitas = ref(null);
 const isLoading = ref(true);
 const breadcrumbItems = ref([
-  { text: 'Dashboard', to: '/dashboard' },
+  { text: 'Dashboard Aktivitas', to: '/aktivitas/dashboard' },
+  { text: 'Daftar Aktivitas', to: '/aktivitas/Daftar' },
   { text: 'Detail Aktivitas' }
 ]);
 

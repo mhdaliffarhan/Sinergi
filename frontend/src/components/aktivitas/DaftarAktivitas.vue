@@ -9,7 +9,7 @@
 </template>
 
 <script setup>
-import KartuAktivitas from '@/components/KartuAktivitas.vue';
+import KartuAktivitas from '@/components/aktivitas/KartuAktivitas.vue';
 
 // Bagian script ini sudah benar dan tidak perlu diubah.
 defineProps({

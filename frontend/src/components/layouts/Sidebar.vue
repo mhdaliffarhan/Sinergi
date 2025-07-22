@@ -53,8 +53,16 @@ onUnmounted(() => window.removeEventListener('resize', updateIsMobile));
 // Struktur Menu (tidak berubah)
 const menuItems = ref([
   { label: 'Dashboard', to: '/dashboard', icon: '📊' },
-  
-  { label: 'Kalender Tim', to: '/kalender', icon: '📅' },{ 
+  { 
+    label: 'Aktivitas', 
+    icon: '⏳',
+    children: [
+      { label: 'Dashboard', to: '/aktivitas/dashboard' },
+      { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
+    ]
+  },
+  { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
+  { 
     label: 'Inventori', 
     icon: '📦',
     children: [
