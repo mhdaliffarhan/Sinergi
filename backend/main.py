@@ -1,16 +1,14 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Response,  File, UploadFile, Form
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload  
 from typing import List,  Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-import shutil
-import os
-import uuid
+from datetime import timedelta
 
-import models
-import database
-import schemas
+import models, database, schemas, security
+import os, shutil, uuid
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -32,6 +30,33 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_user(db: Session, username: str):
+    """Mencari user berdasarkan username."""
+    return db.query(models.User).filter(models.User.username == username).first()
+
+# --- ENDPOINT UNTUK LOGIN ---
+@app.post("/token", response_model=schemas.Token, response_model_by_alias=True)
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    # 1. Cari user di database berdasarkan username yang dikirim
+    user = get_user(db, username=form_data.username)
+    
+    # 2. Jika user tidak ada ATAU password salah, kirim error
+    if not user or not security.verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Username atau password salah",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # 3. Jika berhasil, buat token akses
+    access_token_expires = timedelta(minutes=security.ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = security.create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    
+    # 4. Kembalikan token ke client
+    return {"access_token": access_token, "token_type": "bearer"}
 
 UPLOAD_DIRECTORY = "./uploads"
 if not os.path.exists(UPLOAD_DIRECTORY):
@@ -66,7 +91,6 @@ def get_semua_aktivitas(db: Session = Depends(get_db), q: Optional[str] = None):
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
 def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
-    # 1. Buat objek utama Aktivitas, mapping dari camelCase ke snake_case
     # Kita belum menyimpannya, hanya membuat objeknya di Python
     db_aktivitas = models.Aktivitas(
         nama_aktivitas=aktivitas.namaAktivitas,

@@ -1,6 +1,11 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey, Table, Boolean
 from sqlalchemy.orm import relationship
 from database import Base
+
+user_team_link = Table('user_team_link', Base.metadata,
+    Column('user_id', Integer, ForeignKey('users.id'), primary_key=True),
+    Column('team_id', Integer, ForeignKey('teams.id'), primary_key=True)
+)
 
 class Aktivitas(Base):
     __tablename__ = "aktivitas"
@@ -31,21 +36,30 @@ class Dokumen(Base):
     nama_file_asli = Column(String, nullable=True)
     tipe_file_mime = Column(String, nullable=True)
     diunggah_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
-    
-    # Kunci asing yang menghubungkan ke tabel aktivitas
     aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
-
-    # Tambahkan relasi ini untuk menghubungkan kembali ke Aktivitas
     aktivitas = relationship("Aktivitas", back_populates="dokumen")
 
 class DaftarDokumen(Base):
     __tablename__ = "daftar_dokumen"
-
     id = Column(Integer, primary_key=True, index=True)
     nama_dokumen = Column(String, nullable=False)
     status = Column(String(50), nullable=False, default='Wajib Diunggah')
     dokumen_id = Column(Integer, ForeignKey("dokumen.id"), nullable=True)
-
-    # Hubungkan kembali ke model Aktivitas
     aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
     aktivitas = relationship("Aktivitas", back_populates="daftar_dokumen_wajib")
+    dokumen_terkait = relationship("Dokumen")
+
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, index=True)
+    hashed_password = Column(String)
+    nama_lengkap = Column(String)
+    is_active = Column(Boolean, default=True)
+    teams = relationship("Team", secondary=user_team_link, back_populates="users")
+
+class Team(Base):
+    __tablename__ = "teams"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_tim = Column(String, unique=True, index=True)
+    users = relationship("User", secondary=user_team_link, back_populates="teams")

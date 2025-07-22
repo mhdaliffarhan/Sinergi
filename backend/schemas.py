@@ -100,4 +100,44 @@ class Aktivitas(BaseModel):
         populate_by_name=True,
     )
 
+class Team(BaseModel):
+    id: int
+    namaTim: str = Field(alias='nama_tim')
 
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+    )
+
+    
+class UserBase(BaseModel):
+    username: str
+    namaLengkap: Optional[str] = Field(None, alias='nama_lengkap')
+
+class UserCreate(UserBase):
+    password: str
+
+class User(BaseModel):
+    id: int
+    username: str
+    namaLengkap: Optional[str] = Field(None, alias='nama_lengkap')
+    isActive: bool = Field(alias='is_active')
+    teams: List[Team] = []
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        populate_by_name=True,
+    )
+
+# Skema untuk Token JWT
+class Token(BaseModel):
+    accessToken: str = Field(alias='access_token')
+    tokenType: str = Field(alias='token_type')
+
+    # Tambahkan config ini agar alias bisa digunakan
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+
+class TokenData(BaseModel):
+    username: Optional[str] = None
