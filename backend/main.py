@@ -24,22 +24,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-def get_db():
-    db = database.SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-def get_user(db: Session, username: str):
-    """Mencari user berdasarkan username."""
-    return db.query(models.User).filter(models.User.username == username).first()
-
 # --- ENDPOINT UNTUK LOGIN ---
 @app.post("/token", response_model=schemas.Token, response_model_by_alias=True)
-def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     # 1. Cari user di database berdasarkan username yang dikirim
-    user = get_user(db, username=form_data.username)
+    user = security.get_user(db, username=form_data.username)
     
     # 2. Jika user tidak ada ATAU password salah, kirim error
     if not user or not security.verify_password(form_data.password, user.hashed_password):
@@ -58,6 +47,15 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     # 4. Kembalikan token ke client
     return {"access_token": access_token, "token_type": "bearer"}
 
+# --- ENDPOINT USER TERPROTEKSI ---
+@app.get("/users/me", response_model=schemas.User)
+def read_users_me(current_user: models.User = Depends(security.get_current_user)):
+    """
+    Endpoint ini hanya bisa diakses dengan token yang valid.
+    Ia akan mengembalikan data user yang sedang login.
+    """
+    return current_user
+
 UPLOAD_DIRECTORY = "./uploads"
 if not os.path.exists(UPLOAD_DIRECTORY):
     os.makedirs(UPLOAD_DIRECTORY)
@@ -65,7 +63,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Hapus response_model_by_alias karena kita sudah menangani alias di skema
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
-def get_semua_aktivitas(db: Session = Depends(get_db), q: Optional[str] = None):
+def get_semua_aktivitas(db: Session = Depends(database.get_db), q: Optional[str] = None):
     # Query dasar dengan eager loading dokumen
     query = db.query(models.Aktivitas).options(joinedload(models.Aktivitas.dokumen))
 
@@ -90,7 +88,7 @@ def get_semua_aktivitas(db: Session = Depends(get_db), q: Optional[str] = None):
     return semua_aktivitas
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
-def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
+def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):
     # Kita belum menyimpannya, hanya membuat objeknya di Python
     db_aktivitas = models.Aktivitas(
         nama_aktivitas=aktivitas.namaAktivitas,
@@ -123,7 +121,7 @@ def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(g
 
 # --- ENDPOINT MENGAMBIL DETAIL AKTIVITAS ---
 @app.get("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
-def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(get_db)):
+def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(database.get_db)):
     # Query database untuk mencari aktivitas dengan ID yang sesuai
     db_aktivitas = db.query(models.Aktivitas).options(
         joinedload(models.Aktivitas.dokumen),
@@ -139,7 +137,7 @@ def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(get_db)):
 
 # --- ENDPOINT MENGUPDATE AKTIVITAS ---
 @app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
-def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: Session = Depends(get_db)):
+def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):
     db_aktivitas = db.query(models.Aktivitas).options(
         joinedload(models.Aktivitas.daftar_dokumen_wajib)
     ).filter(models.Aktivitas.id == aktivitas_id).first()
@@ -192,7 +190,7 @@ def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: 
 
 # --- ENDPOINT MENGHAPUS AKTIVITAS ---
 @app.delete("/api/aktivitas/{aktivitas_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_aktivitas(aktivitas_id: int, db: Session = Depends(get_db)):
+def delete_aktivitas(aktivitas_id: int, db: Session = Depends(database.get_db)):
     # 1. Cari aktivitas yang akan dihapus
     aktivitas_query = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id)
     # Jika tidak ditemukan, kirim error 404
@@ -215,7 +213,7 @@ def create_dokumen_untuk_aktivitas(
     keterangan: str = Form(...),
     checklist_item_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db)
     ):
     # Cek aktivitas (tidak berubah)
     aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
@@ -263,7 +261,7 @@ def add_link_untuk_aktivitas(
 
     aktivitas_id: int,
     link_data: schemas.DokumenCreate, # Kita akan gunakan kembali skema ini
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db)
 ):
     # Cek dulu apakah aktivitasnya ada
     aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
@@ -290,7 +288,7 @@ def replace_checklist_dokumen(
     item_id: int,
     old_file_action: str = Form(...), # Menerima 'hapus' atau 'unlink'
     file: UploadFile = File(...),
-    db: Session = Depends(get_db)
+    db: Session = Depends(database.get_db)
 ):
     # 1. Cari item checklist yang akan diupdate
     db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == item_id).first()
@@ -342,7 +340,7 @@ def replace_checklist_dokumen(
 
 # --- ENDPOIN MENGHAPUS DOKUMEN ---
 @app.delete("/api/dokumen/{dokumen_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_dokumen(dokumen_id: int, db: Session = Depends(get_db)):
+def delete_dokumen(dokumen_id: int, db: Session = Depends(database.get_db)):
     db_dokumen = db.query(models.Dokumen).filter(models.Dokumen.id == dokumen_id).first()
     
     if db_dokumen is None:
