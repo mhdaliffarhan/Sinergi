@@ -26,24 +26,42 @@
           </div>
         </div>
 
-        <div>
-          <input 
-            type="text" 
-            placeholder="Username" 
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
-        </div>
-        <div>
-          <input 
-            type="password" 
-            placeholder="Password" 
-            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-          />
+        <form class="space-y-6" @submit.prevent="handleSubmit">
+        <div v-if="errorMessage" class="p-3 bg-red-100 dark:bg-red-900/50 border border-red-300 dark:border-red-700 rounded-md">
+          <p class="text-sm text-red-700 dark:text-red-300">{{ errorMessage }}</p>
         </div>
 
-        <button class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-700 hover:bg-green-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
-          Masuk
+        <div>
+          <label for="username" class="sr-only">Username</label>
+          <input 
+            id="username"
+            type="text" 
+            v-model="username"
+            required
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Username"
+          />
+        </div>
+        <div>
+          <label for="password" class="sr-only">Password</label>
+          <input 
+            id="password"
+            type="password" 
+            v-model="password"
+            required
+            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md placeholder-gray-500 text-gray-900 dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            placeholder="Password"
+          />
+        </div>
+        
+        <button 
+          type="submit"
+          :disabled="isLoading"
+          class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400 disabled:cursor-not-allowed"
+        >
+          {{ isLoading ? 'Memproses...' : 'Masuk' }}
         </button>
+      </form>
       </div>
 
     </div>
@@ -51,5 +69,29 @@
 </template>
 
 <script setup>
-// Logika untuk login (termasuk SSO) akan ditambahkan di sini
+import { ref } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+
+const authStore = useAuthStore();
+
+// State untuk menampung input dari form
+const username = ref('');
+const password = ref('');
+
+// State untuk menampilkan pesan error dan status loading
+const errorMessage = ref(null);
+const isLoading = ref(false);
+
+const handleSubmit = async () => {
+  isLoading.value = true;
+  errorMessage.value = null;
+
+  const success = await authStore.login(username.value, password.value);
+
+  if (!success) {
+    errorMessage.value = 'Username atau password salah.';
+  }
+  
+  isLoading.value = false;
+};
 </script>

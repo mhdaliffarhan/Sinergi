@@ -61,7 +61,9 @@
               </div>
               <div class="px-1 py-1">
                 <MenuItem v-slot="{ active }">
-                  <button :class="[active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-200', 'group flex w-full items-center rounded-md px-2 py-2 text-sm']">Logout</button>
+                  <button @click="authStore.logout" :class="[active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-200', 'group flex w-full items-center rounded-md px-2 py-2 text-sm']">
+                    Logout
+                  </button>
                 </MenuItem>
               </div>
             </MenuItems>
@@ -74,10 +76,12 @@
 
 <script setup>
 import { useUIStore } from '@/stores/ui';
-import { ref, onMounted, watch } from 'vue';
+import { useAuthStore } from '@/stores/auth';
+import { ref, onMounted} from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 
 const uiStore = useUIStore();
+const authStore = useAuthStore();
 
 // 1. STATE: Gunakan satu ref untuk menyimpan tema saat ini.
 // Ambil dari localStorage, atau default ke 'system'.
