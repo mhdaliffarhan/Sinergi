@@ -2,6 +2,46 @@ from pydantic import BaseModel, model_validator, Field, ConfigDict
 from typing import Optional, Any, List
 from datetime import date, time, datetime
 
+def to_camel(snake_str: str) -> str:
+    parts = snake_str.split('_')
+    return parts[0] + "".join(word.capitalize() for word in parts[1:])
+
+# Model dasar yang akan melakukan konversi otomatis untuk SEMUA skema
+class CamelModel(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,      # Otomatis buat alias camelCase
+        populate_by_name=True, # Izinkan pengisian via snake_case atau camelCase
+        from_attributes=True           # Izinkan membaca dari objek SQLAlchemy
+    )
+
+class Team(CamelModel):
+    id: int
+    nama_tim: str
+
+class Jabatan(CamelModel):
+    id: int
+    nama_jabatan: str
+
+class SistemRole(CamelModel):
+    id: int
+    nama_role: str
+
+class UserBase(CamelModel):
+    username: str
+    nama_lengkap: Optional[str] = None
+
+class UserCreate(UserBase):
+    password: str
+    sistem_role_id: int
+    jabatan_id: int
+
+class User(UserBase):
+    id: int
+    is_active: bool
+    sistem_role: SistemRole
+    jabatan: Optional[Jabatan] = None
+    teams: List[Team] = []
+
 # --- SKEMA DAFTAR DOKUMEN WAJIB ---
 class DaftarDokumen(BaseModel):
     id: int
@@ -100,35 +140,6 @@ class Aktivitas(BaseModel):
         populate_by_name=True,
     )
 
-class Team(BaseModel):
-    id: int
-    namaTim: str = Field(alias='nama_tim')
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-    )
-
-    
-class UserBase(BaseModel):
-    username: str
-    namaLengkap: Optional[str] = Field(None, alias='nama_lengkap')
-
-class UserCreate(UserBase):
-    password: str
-
-class User(BaseModel):
-    id: int
-    username: str
-    namaLengkap: Optional[str] = Field(None, alias='nama_lengkap')
-    isActive: bool = Field(alias='is_active')
-    teams: List[Team] = []
-
-    model_config = ConfigDict(
-        from_attributes=True,
-        populate_by_name=True,
-    )
-
 # Skema untuk Token JWT
 class Token(BaseModel):
     accessToken: str = Field(alias='access_token')
@@ -141,3 +152,4 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+

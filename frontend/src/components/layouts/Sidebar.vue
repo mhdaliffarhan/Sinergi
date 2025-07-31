@@ -71,6 +71,14 @@ const menuItems = ref([
     ]
   },
   { label: 'Pencarian Dokumen', to: '/dokumen', icon: '📂' },
+  { 
+    label: 'Admin', 
+    icon: '⏳',
+    children: [
+      { label: 'Manajemen User', to: '/admin/manajemen-user' },
+      { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
+    ]
+  },
 ]);
 
 // --- PERBAIKAN UTAMA ADA DI SINI ---

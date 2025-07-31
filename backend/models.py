@@ -56,6 +56,14 @@ class User(Base):
     hashed_password = Column(String)
     nama_lengkap = Column(String)
     is_active = Column(Boolean, default=True)
+    
+    # Kolom foreign key yang menghubungkan ke tabel lain
+    sistem_role_id = Column(Integer, ForeignKey("sistem_roles.id"))
+    jabatan_id = Column(Integer, ForeignKey("jabatan.id"))
+
+    # Relasi yang memungkinkan kita mengakses data terkait
+    sistem_role = relationship("SistemRole")
+    jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")
 
 class Team(Base):
@@ -63,3 +71,13 @@ class Team(Base):
     id = Column(Integer, primary_key=True, index=True)
     nama_tim = Column(String, unique=True, index=True)
     users = relationship("User", secondary=user_team_link, back_populates="teams")
+
+class SistemRole(Base):
+    __tablename__ = "sistem_roles"
+    id = Column(Integer, primary_key=True)
+    nama_role = Column(String, unique=True, nullable=False)
+
+class Jabatan(Base):
+    __tablename__ = "jabatan"
+    id = Column(Integer, primary_key=True)
+    nama_jabatan = Column(String, unique=True, nullable=False)

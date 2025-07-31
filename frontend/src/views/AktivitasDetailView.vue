@@ -204,7 +204,7 @@ const deleteActivity = async () => {
   try {
     await axios.delete(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
     toast.success("Aktivitas berhasil dihapus.");
-    router.push('/dashboard');
+    router.push('/aktivitas/daftar');
   } catch (error) { toast.error("Gagal menghapus aktivitas."); }
 };
 

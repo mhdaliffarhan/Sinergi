@@ -50,8 +50,8 @@
             <MenuItems class="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg broder border-gray-200 dark:border-gray-700 focus:outline-none">
               <div class="px-1 py-1">
                 <div class="px-2 py-2">
-                  <p class="text-sm font-semibold text-gray-900 dark:text-white">Nama Pengguna</p>
-                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">email.pengguna@bps.go.id</p>
+                  <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ authStore.user?.nama_lengkap || 'Memuat...' }}</p>
+                  <p class="text-sm text-gray-500 dark:text-gray-400 truncate">{{ authStore.user?.username }}</p>
                 </div>
               </div>
               <div class="px-1 py-1">
