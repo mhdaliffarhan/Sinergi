@@ -9,7 +9,6 @@ user_team_link = Table('user_team_link', Base.metadata,
 
 class Aktivitas(Base):
     __tablename__ = "aktivitas"
-
     id = Column(Integer, primary_key=True, index=True)
     nama_aktivitas = Column(String, index=True)
     deskripsi = Column(Text, nullable=True)
@@ -19,10 +18,7 @@ class Aktivitas(Base):
     jam_mulai = Column(Time, nullable=True)
     jam_selesai = Column(Time, nullable=True)
     dibuat_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
-
     dokumen = relationship("Dokumen", back_populates="aktivitas", cascade="all, delete-orphan")
-
-    # Relasi ke tabel daftar dokumen wajib
     daftar_dokumen_wajib = relationship("DaftarDokumen", back_populates="aktivitas", cascade="all, delete-orphan")
 
     # --- KELAS UNTUK TABEL DOKUMEN ---
@@ -56,12 +52,8 @@ class User(Base):
     hashed_password = Column(String)
     nama_lengkap = Column(String)
     is_active = Column(Boolean, default=True)
-    
-    # Kolom foreign key yang menghubungkan ke tabel lain
     sistem_role_id = Column(Integer, ForeignKey("sistem_roles.id"))
     jabatan_id = Column(Integer, ForeignKey("jabatan.id"))
-
-    # Relasi yang memungkinkan kita mengakses data terkait
     sistem_role = relationship("SistemRole")
     jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")

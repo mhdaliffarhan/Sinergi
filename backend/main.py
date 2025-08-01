@@ -147,31 +147,26 @@ def get_semua_aktivitas(db: Session = Depends(database.get_db), q: Optional[str]
     return semua_aktivitas
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
-def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):
-    # Kita belum menyimpannya, hanya membuat objeknya di Python
+def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):   
     db_aktivitas = models.Aktivitas(
-        nama_aktivitas=aktivitas.namaAktivitas,
+        nama_aktivitas=aktivitas.nama_aktivitas,
         deskripsi=aktivitas.deskripsi,
-        tim_penyelenggara=aktivitas.timPenyelenggara,
-        jam_mulai=aktivitas.jamMulai,
-        jam_selesai=aktivitas.jamSelesai
+        tim_penyelenggara=aktivitas.tim_penyelenggara,
+        jam_mulai=aktivitas.jam_mulai,
+        jam_selesai=aktivitas.jam_selesai
     )
 
-    # Logika untuk tanggal
-    if aktivitas.useDateRange:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
-        db_aktivitas.tanggal_selesai = aktivitas.tanggalSelesai
+    if aktivitas.use_date_range:
+        db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
+        db_aktivitas.tanggal_selesai = aktivitas.tanggal_selesai
     else:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
+        db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
     
-    # 2. Loop melalui daftar nama dokumen dan tambahkan ke relasi
-    for nama_dok in aktivitas.daftarDokumenWajib:
-        if nama_dok: # Pastikan string tidak kosong
+    for nama_dok in aktivitas.daftar_dokumen_wajib:
+        if nama_dok:
             db_daftar_dokumen = models.DaftarDokumen(nama_dokumen=nama_dok)
-            # Hubungkan langsung ke objek aktivitas utama
             db_aktivitas.daftar_dokumen_wajib.append(db_daftar_dokumen)
 
-    # 3. Simpan semuanya ke database dalam SATU KALI transaksi
     db.add(db_aktivitas)
     db.commit()
     db.refresh(db_aktivitas)
@@ -196,53 +191,53 @@ def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(database.get_db
 
 # --- ENDPOINT MENGUPDATE AKTIVITAS ---
 @app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
-def update_aktivitas(aktivitas_id: int, aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):
+def update_aktivitas(
+    aktivitas_id: int, 
+    aktivitas: schemas.AktivitasCreate, 
+    db: Session = Depends(database.get_db), 
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """Memperbarui aktivitas yang ada beserta checklist-nya."""
     db_aktivitas = db.query(models.Aktivitas).options(
         joinedload(models.Aktivitas.daftar_dokumen_wajib)
     ).filter(models.Aktivitas.id == aktivitas_id).first()
-
     if db_aktivitas is None:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
 
-    # Perbarui field satu per satu secara eksplisit
-    db_aktivitas.nama_aktivitas = aktivitas.namaAktivitas
-    db_aktivitas.deskripsi = aktivitas.deskripsi
-    db_aktivitas.tim_penyelenggara = aktivitas.timPenyelenggara
+    # Ambil semua data dari Pydantic model sebagai dictionary snake_case
+    update_data = aktivitas.dict(exclude_unset=True)
     
-    # Logika untuk tanggal
-    if aktivitas.useDateRange:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
-        db_aktivitas.tanggal_selesai = aktivitas.tanggalSelesai
-    else:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggalMulai
+    # Hapus field yang tidak ada di model Aktivitas
+    update_data.pop('daftar_dokumen_wajib', None)
+    update_data.pop('use_date_range', None)
+    update_data.pop('use_time', None)
+    
+    # Update field-field utama
+    for key, value in update_data.items():
+        setattr(db_aktivitas, key, value)
+
+    # Logika khusus untuk tanggal selesai jika tidak menggunakan rentang
+    if not aktivitas.use_date_range:
         db_aktivitas.tanggal_selesai = None
 
-    # Logika untuk jam
-    if aktivitas.useTime:
-        db_aktivitas.jam_mulai = aktivitas.jamMulai
-        db_aktivitas.jam_selesai = aktivitas.jamSelesai
-    else:
+    # Logika khusus untuk jam jika tidak digunakan
+    if not aktivitas.use_time:
         db_aktivitas.jam_mulai = None
         db_aktivitas.jam_selesai = None
-    
-    # Siapkan daftar nama dokumen dari database dan dari form
-    existing_doc_names = {doc.nama_dokumen for doc in db_aktivitas.daftar_dokumen_wajib}
-    incoming_doc_names = set(aktivitas.daftarDokumenWajib)
 
-    # Hapus item yang tidak ada lagi di form
+    # Logika untuk update checklist (sudah benar)
+    existing_doc_names = {doc.nama_dokumen for doc in db_aktivitas.daftar_dokumen_wajib}
+    incoming_doc_names = set(aktivitas.daftar_dokumen_wajib)
+    
     docs_to_delete = [doc for doc in db_aktivitas.daftar_dokumen_wajib if doc.nama_dokumen not in incoming_doc_names]
     for doc in docs_to_delete:
         db.delete(doc)
 
-    # Tambahkan item baru dari form
     docs_to_add = incoming_doc_names - existing_doc_names
     for doc_name in docs_to_add:
-        new_doc = models.DaftarDokumen(
-            nama_dokumen=doc_name,
-            aktivitas_id=aktivitas_id
-        )
+        new_doc = models.DaftarDokumen(nama_dokumen=doc_name, aktivitas_id=aktivitas_id)
         db.add(new_doc)
-
+        
     db.commit()
     db.refresh(db_aktivitas)
     return db_aktivitas

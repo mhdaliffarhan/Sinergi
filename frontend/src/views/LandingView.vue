@@ -5,7 +5,7 @@
       style="background-image: url('/kantor-bg.jpg');"
     ></div>
 
-    <div class="absolute inset-0 bg-black/80 z-10"></div>
+    <div class="absolute inset-0 bg-white/20 dark:bg-black/80 z-10"></div>
 
     <div class="relative z-20 flex flex-col items-center justify-center h-full text-center text-white px-4">
 

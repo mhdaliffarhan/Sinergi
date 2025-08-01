@@ -1,6 +1,7 @@
 <template>
   <form @submit.prevent="handleSubmit">
     <div class="space-y-4">
+      
       <div>
         <label for="nama-aktivitas" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Aktivitas</label>
         <input 
@@ -90,9 +91,7 @@
       <hr class="border-gray-200 dark:border-gray-700">
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-          Daftar Dokumen Wajib
-        </label>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Daftar Dokumen Wajib</label>
         <div class="flex gap-2">
           <input 
             type="text" 
@@ -109,7 +108,6 @@
             Tambah
           </button>
         </div>
-        
         <ul v-if="daftarDokumenWajib.length > 0" class="mt-3 space-y-2">
           <li 
             v-for="(dokumen, index) in daftarDokumenWajib" 
@@ -148,6 +146,7 @@ const props = defineProps({
   
 const emit = defineEmits(['close', 'submit']);
 
+// State untuk form (struktur sudah benar)
 const form = reactive({
   namaAktivitas: '',
   deskripsi: '',
@@ -174,7 +173,15 @@ const hapusDokumen = (index) => {
   daftarDokumenWajib.value.splice(index, 1);
 };
 
+// Mengisi form saat ada initialData (lebih andal)
 watch(() => props.initialData, (newData) => {
+  // Reset form setiap kali modal dibuka/data berubah
+  Object.assign(form, {
+    namaAktivitas: '', deskripsi: '', timPenyelenggara: '', useDateRange: false,
+    useTime: false, tanggalMulai: '', tanggalSelesai: '', jamMulai: '', jamSelesai: '',
+  });
+  daftarDokumenWajib.value = [];
+
   if (newData) {
     form.namaAktivitas = newData.namaAktivitas || '';
     form.deskripsi = newData.deskripsi || '';
@@ -189,9 +196,11 @@ watch(() => props.initialData, (newData) => {
     form.jamMulai = newData.jamMulai || '';
     form.jamSelesai = newData.jamSelesai || '';
     daftarDokumenWajib.value = newData.daftarDokumenWajib?.map(d => d.namaDokumen) || [];
-  }
-}, { immediate: true });
 
+  }
+}, { immediate: true, deep: true });
+
+// Membersihkan tanggalSelesai (sudah benar)
 watch(() => form.useDateRange, (isRange) => {
   if (!isRange) {
     form.tanggalSelesai = '';
@@ -210,6 +219,7 @@ const errors = reactive({
 const validate = () => {
   Object.keys(errors).forEach(key => errors[key] = null);
   let isValid = true;
+  console.log(form);
 
   if (!form.namaAktivitas) { errors.namaAktivitas = 'Wajib diisi.'; isValid = false; }
   if (!form.timPenyelenggara) { errors.timPenyelenggara = 'Wajib dipilih.'; isValid = false; }
@@ -217,7 +227,7 @@ const validate = () => {
   
   if (form.useDateRange) {
     if (!form.tanggalSelesai) { errors.tanggalSelesai = 'Wajib diisi.'; isValid = false; }
-    if (form.tanggalMulai && form.tanggalSlesai && form.tanggalSelesai < form.tanggalMulai) {
+    if (form.tanggalMulai && form.tanggalSelesai && form.tanggalSelesai < form.tanggalMulai) {
       errors.tanggalSelesai = 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
       isValid = false;
     }
@@ -233,7 +243,6 @@ const validate = () => {
       isValid = false;
     }
   }
-  
   return isValid;
 };
 
