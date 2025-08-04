@@ -1,6 +1,6 @@
 from fastapi import (FastAPI, Depends, HTTPException, status, Response, File,
                      UploadFile, Form)
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload  
@@ -422,4 +422,30 @@ def delete_dokumen(dokumen_id: int, db: Session = Depends(database.get_db)):
     # 4. Kembalikan respons tanpa konten
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
+# --- ENDPOINT BARU UNTUK UNDUH/PREVIEW DOKUMEN ---
+@app.get("/api/dokumen/{dokumen_id}/download")
+def download_dokumen(
+    dokumen_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Mengirim file ke pengguna dengan nama file aslinya dan menyarankan preview.
+    """
+    db_dokumen = db.query(models.Dokumen).filter(models.Dokumen.id == dokumen_id).first()
 
+    if db_dokumen is None or db_dokumen.tipe != 'FILE' or not os.path.exists(db_dokumen.path_atau_url):
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+
+    # --- PERBAIKAN DI SINI ---
+    # Atur header Content-Disposition secara manual untuk 'inline'
+    headers = {
+        'Content-Disposition': f'inline; filename="{db_dokumen.nama_file_asli}"'
+    }
+    
+    # Kirim file sebagai respons dengan header yang sudah diatur
+    return FileResponse(
+        path=db_dokumen.path_atau_url,
+        media_type=db_dokumen.tipe_file_mime,
+        headers=headers
+    )

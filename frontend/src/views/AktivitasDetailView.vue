@@ -43,6 +43,7 @@
               @unggah="handleUploadRequest"
               @ganti="handleGantiRequest"
               @hapus="confirmDeleteDokumen"
+              @preview="handlePreviewRequest"
             />
           </div>
           <div v-else>
@@ -56,7 +57,12 @@
             <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">+ Tambah Link</button>
           </div>
           <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
-            <DokumenItem v-for="doc in otherDocuments" :key="doc.id" :dokumen="doc" @hapus="confirmDeleteDokumen" />
+            <DokumenItem 
+              v-for="doc in otherDocuments" 
+              :key="doc.id" 
+              :dokumen="doc" 
+              @hapus="confirmDeleteDokumen"
+              @preview="handlePreviewRequest" />
           </div>
           <DropzoneUploader @file-selected="handleFileReadyForUpload" />
         </div>
@@ -65,7 +71,13 @@
         <p class="text-center text-red-500">Gagal memuat data.</p>
       </div>
     </div>
-
+    <FilePreviewModal
+      :show="isPreviewModalOpen"
+      :file-url="fileToPreview.url"
+      :file-name="fileToPreview.name"
+      :file-type="fileToPreview.type"
+      @close="closePreviewModal"
+    />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
       <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" />
     </ModalWrapper>
@@ -95,6 +107,7 @@ import ChecklistItem from '@/components/aktivitas/ChecklistItem.vue';
 import DropzoneUploader from '@/components/aktivitas/DropzoneUploader.vue';
 import FormKonfirmasiDokumen from '@/components/aktivitas/FormKonfirmasiDokumen.vue';
 import ModalKonfirmasiGantiFile from '@/components/aktivitas/ModalKonfirmasiGantiFile.vue';
+import FilePreviewModal from '@/components/FilePreviewModal.vue';
 
 // --- DEKLARASI STATE & INISIALISASI ---
 const route = useRoute();
@@ -114,6 +127,8 @@ const isEditModalOpen = ref(false);
 const isLinkModalOpen = ref(false);
 const isFileModalOpen = ref(false);
 const isReplaceModalOpen = ref(false);
+const isPreviewModalOpen = ref(false);
+const fileToPreview = ref({ url: '', name: '', type: '' });
 
 const fileToUpload = ref(null);
 const fileInputForChecklist = ref(null);
@@ -321,6 +336,42 @@ const handleReplaceFileSelected = async (event) => {
   } finally {
     itemToReplace.value = null;
     event.target.value = '';
+  }
+};
+
+const openPreviewModal = () => { isPreviewModalOpen.value = true; };
+const closePreviewModal = () => {
+  // Hapus URL sementara untuk membersihkan memori
+  if (fileToPreview.value.url) {
+    window.URL.revokeObjectURL(fileToPreview.value.url);
+  }
+  isPreviewModalOpen.value = false;
+  fileToPreview.value = { url: '', name: '', type: '' };
+};
+
+// Fungsi ini dipanggil saat event @preview dari DokumenItem diterima
+const handlePreviewRequest = async (dokumen) => {
+  try {
+    const response = await axios.get(`http://127.0.0.1:8000/api/dokumen/${dokumen.id}/download`, {
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([response.data], { type: response.headers['content-type'] });
+    const url = window.URL.createObjectURL(blob);
+    
+    // Simpan data file ke state
+    fileToPreview.value = {
+      url: url,
+      name: dokumen.namaFileAsli,
+      type: response.headers['content-type']
+    };
+    
+    // Buka modal
+    openPreviewModal();
+
+  } catch (error) {
+    toast.error("Gagal membuka file untuk preview.");
+    console.error(error);
   }
 };
 </script>
