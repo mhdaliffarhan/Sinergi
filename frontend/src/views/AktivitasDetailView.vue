@@ -7,15 +7,46 @@
       </div>
       <div v-else-if="aktivitas">
         
-        <div class="flex items-start justify-between">
-          <div>
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between">
+          <div class="mb-4 md:mb-0">
             <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.timPenyelenggara }}</p>
-            <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ aktivitas.namaAktivitas }}</h1>
+            <h1 class="text-3xl font-bold text-orange-600 dark:text-orange-500 mt-1">{{ aktivitas.namaAktivitas }}</h1>
             <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
           </div>
-          <div class="flex items-center gap-2 flex-shrink-0 ml-4">
-            <button @click="openEditModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">Edit</button>
-            <button @click="confirmDeleteActivity" class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700">Hapus</button>
+          
+          <div class="flex-shrink-0 w-full md:w-auto">
+            <Menu as="div" class="relative inline-block text-left">
+              <div>
+                <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
+                  Tindakan
+                  <svg class="-mr-1 h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd" />
+                  </svg>
+                </MenuButton>
+              </div>
+
+              <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
+                <MenuItems class="absolute left-0 md:left-auto md:right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg  dark:ring-gray-600 ring-opacity-5 focus:outline-none">
+                  <div class="py-1">
+                    <MenuItem v-slot="{ active }">
+                      <button @click="handleDownloadAll" :class="[active ? 'bg-green-100 dark:bg-green-700' : '', 'text-green-700 dark:text-green-200 block w-full text-left px-4 py-2 text-sm']">
+                        Unduh Semua File
+                      </button>
+                    </MenuItem>
+                    <MenuItem v-slot="{ active }">
+                      <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
+                        Edit Aktivitas
+                      </button>
+                    </MenuItem>
+                    <MenuItem v-slot="{ active }">
+                      <button @click="confirmDeleteActivity" :class="[active ? 'bg-red-100 dark:bg-red-800' : '', 'text-red-700 dark:text-red-300 block w-full text-left px-4 py-2 text-sm']">
+                        Hapus Aktivitas
+                      </button>
+                    </MenuItem>
+                  </div>
+                </MenuItems>
+              </transition>
+            </Menu>
           </div>
         </div>
         <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
@@ -96,6 +127,7 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -372,6 +404,58 @@ const handlePreviewRequest = async (dokumen) => {
   } catch (error) {
     toast.error("Gagal membuka file untuk preview.");
     console.error(error);
+  }
+};
+
+const handleDownloadAll = async () => {
+  // --- VALIDASI DI FRONTEND ---
+  // Gunakan computed property 'files' yang sudah kita buat sebelumnya.
+  const filesToDownload = files.value;
+
+  // 1. Cek apakah ada file untuk diunduh.
+  if (filesToDownload.length === 0) {
+    toast.warning("Tidak ada file yang bisa diunduh untuk aktivitas ini.");
+    return; // Hentikan fungsi di sini.
+  }
+
+  // 2. Jika ada file, baru tampilkan konfirmasi.
+  if (window.confirm(`Apakah Anda yakin ingin mengunduh semua file untuk aktivitas ini?`)) {
+    const toastId = toast.info("Sedang mempersiapkan file ZIP, mohon tunggu...", { timeout: false });
+    
+    try {
+      const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/download-all`, {
+        responseType: 'blob',
+        timeout: 60000,
+      });
+
+      // ... (sisa logika unduh tidak berubah)
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement('a');
+      link.href = url;
+      
+      let fileName = `${aktivitas.value.namaAktivitas || 'dokumen'}.zip`;
+      const contentDisposition = response.headers['content-disposition'];
+      if (contentDisposition) {
+        const fileNameMatch = contentDisposition.match(/filename="(.+)"/);
+        if (fileNameMatch && fileNameMatch.length === 2) {
+          fileName = fileNameMatch[1];
+        }
+      }
+
+      link.setAttribute('download', fileName);
+      document.body.appendChild(link);
+      link.click();
+
+      link.remove();
+      window.URL.revokeObjectURL(url);
+      toast.dismiss(toastId);
+      toast.success("File ZIP berhasil diunduh!");
+
+    } catch (error) {
+      toast.dismiss(toastId);
+      console.error("Gagal mengunduh semua file:", error);
+      toast.error(error.response?.data?.detail || "Gagal mengunduh file ZIP.");
+    }
   }
 };
 </script>

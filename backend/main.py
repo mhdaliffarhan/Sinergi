@@ -1,6 +1,7 @@
+
 from fastapi import (FastAPI, Depends, HTTPException, status, Response, File,
                      UploadFile, Form)
-from fastapi.responses import JSONResponse, FileResponse
+from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_
 from sqlalchemy.orm import Session, joinedload  
@@ -10,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from datetime import timedelta
 
 import models, database, schemas, security
-import os, shutil, uuid
+import os, shutil, uuid, io, zipfile
 
 models.Base.metadata.create_all(bind=database.engine)
 
@@ -448,4 +449,44 @@ def download_dokumen(
         path=db_dokumen.path_atau_url,
         media_type=db_dokumen.tipe_file_mime,
         headers=headers
+    )
+
+# --- ENDPOINTUNTUK UNDUH SEMUA DOKUMEN DALAM SATU AKTIVITAS ---
+@app.get("/api/aktivitas/{aktivitas_id}/download-all")
+def download_all_dokumen(
+    aktivitas_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Mengunduh semua dokumen bertipe FILE dari sebuah aktivitas dalam bentuk .zip.
+    """
+    db_aktivitas = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.dokumen)
+    ).filter(models.Aktivitas.id == aktivitas_id).first()
+
+    if not db_aktivitas:
+        raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+
+    files_to_zip = [doc for doc in db_aktivitas.dokumen if doc.tipe == 'FILE' and os.path.exists(doc.path_atau_url)]
+
+    # --- VALIDASI DOKUMEN KOSONG ---
+    if not files_to_zip:
+        raise HTTPException(status_code=404, detail="Tidak ada file yang bisa diunduh untuk aktivitas ini.")
+
+    # --- PROSES ZIPPING YANG LEBIH EFISIEN ---
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for doc in files_to_zip:
+            zip_file.write(doc.path_atau_url, doc.nama_file_asli)
+    
+    zip_buffer.seek(0)
+
+    zip_filename = f"{db_aktivitas.nama_aktivitas.replace(' ', '_')}.zip"
+    
+    return StreamingResponse(
+        iter([zip_buffer.getvalue()]),
+        media_type="application/x-zip-compressed",
+        headers={'Content-Disposition': f'attachment; filename="{zip_filename}"'}
     )
