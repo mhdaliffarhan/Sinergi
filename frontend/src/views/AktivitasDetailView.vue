@@ -33,7 +33,7 @@
 
         <div class="mb-6">
           <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-4">Checklist Kelengkapan Dokumen</h2>
-          <input type="file" ref="fileInputChecklist" @change="handleFileSelectedForChecklist" class="hidden">
+          <input type="file" ref="fileInputForChecklist" @change="handleFileSelectedForChecklist" class="hidden">
           <input type="file" ref="replaceFileInput" @change="handleReplaceFileSelected" class="hidden">
           <div v-if="aktivitas.daftarDokumenWajib && aktivitas.daftarDokumenWajib.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <ChecklistItem
@@ -116,7 +116,7 @@ const isFileModalOpen = ref(false);
 const isReplaceModalOpen = ref(false);
 
 const fileToUpload = ref(null);
-const fileInputChecklist = ref(null);
+const fileInputForChecklist = ref(null);
 const replaceFileInput = ref(null);
 const checklistItemIdToUpload = ref(null);
 const itemToReplace = ref(null);
@@ -259,14 +259,37 @@ const handleFileUploadSubmit = async (formData) => {
 // --- Logika untuk Unggah File (via Checklist) ---
 const handleUploadRequest = (itemId) => {
   checklistItemIdToUpload.value = itemId;
-  fileInputChecklist.value.click();
+  fileInputForChecklist.value.click();
 };
+
 const handleFileSelectedForChecklist = async (event) => {
   const file = event.target.files[0];
   if (!file || !checklistItemIdToUpload.value) return;
-  fileToUpload.value = file;
-  isFileModalOpen.value = true; // Buka modal konfirmasi yang sama dengan dropzone
-  event.target.value = '';
+
+  // Temukan nama item checklist untuk dijadikan keterangan default
+  const checklistItem = aktivitas.value.daftarDokumenWajib.find(
+    item => item.id === checklistItemIdToUpload.value
+  );
+  const keterangan = checklistItem ? checklistItem.namaDokumen : 'Dokumen Checklist';
+
+  // Siapkan data untuk dikirim
+  const data = new FormData();
+  data.append('file', file);
+  data.append('keterangan', keterangan);
+  data.append('checklist_item_id', checklistItemIdToUpload.value);
+  console.log('data : ',data);
+  try {
+   await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/dokumen`, data);
+     
+    toast.success("Dokumen berhasil diunggah & checklist diperbarui!");
+    await fetchDetailAktivitas();
+  } catch (error) {
+    toast.error("Gagal mengunggah file.");
+    console.error(error);
+  } finally {
+    checklistItemIdToUpload.value = null;
+    event.target.value = '';
+  }
 };
 
 // --- Logika untuk Ganti File (via Checklist) ---

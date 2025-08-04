@@ -284,7 +284,6 @@ def create_dokumen_untuk_aktivitas(
     finally:
         file.file.close()
 
-     # 1. Buat dan SIMPAN entri di tabel 'dokumen' terlebih dahulu
     db_dokumen = models.Dokumen(
         aktivitas_id=aktivitas_id,
         keterangan=keterangan,
