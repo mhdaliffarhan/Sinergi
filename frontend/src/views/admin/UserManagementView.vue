@@ -12,7 +12,44 @@
 
     <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
       <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
-        </table>
+        <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
+          <tr>
+            <th scope="col" class="px-6 py-3">Nama Lengkap</th>
+            <th scope="col" class="px-6 py-3">Username</th>
+            <th scope="col" class="px-6 py-3">Jabatan</th>
+            <th scope="col" class="px-6 py-3">Peran Sistem</th>
+            <th scope="col" class="px-6 py-3">Status</th>
+            <th scope="col" class="px-6 py-3"><span class="sr-only">Aksi</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="user in users" :key="user.id" class="border-b dark:border-gray-700">
+            <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+              {{ user.namaLengkap }}
+            </th>
+            <td class="px-6 py-4">
+              {{ user.username }}
+            </td>
+            <td class="px-6 py-4">
+              {{ user.jabatan?.namaJabatan || '-' }}
+            </td>
+            <td class="px-6 py-4">
+              <span v-if="user.sistemRole" class="px-2 py-1 text-xs font-semibold rounded-full" :class="getRoleClass(user.sistemRole.namaRole)">
+                {{ user.sistemRole.namaRole }}
+              </span>
+              <span v-else>-</span>
+            </td>
+            <td class="px-6 py-4">
+              <span :class="user.isActive ? 'text-green-500' : 'text-red-500'">
+                {{ user.isActive ? 'Aktif' : 'Non-Aktif' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <button class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Tambah Pengguna Baru">
