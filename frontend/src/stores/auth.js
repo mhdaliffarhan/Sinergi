@@ -10,6 +10,11 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value);
   const userRole = computed(() => user.value?.sistemRole?.namaRole);
 
+  const isAdmin = computed(() => {
+    const role = user.value?.sistemRole?.namaRole;
+    return role === 'Superadmin' || role === 'Admin';
+  });
+
   function setToken(newToken) {
     localStorage.setItem('token', newToken);
     token.value = newToken;
@@ -66,5 +71,5 @@ export const useAuthStore = defineStore('auth', () => {
     router.push('/login');
   }
 
-  return { token, user, isAuthenticated, userRole, login, fetchUser, logout };
+  return { token, user, isAuthenticated, userRole, isAdmin, login, fetchUser, logout };
 });

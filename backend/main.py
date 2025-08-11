@@ -72,9 +72,9 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     db.refresh(new_user)
     return new_user
 
-@app.get("/api/users", response_model=List[schemas.User], dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.get("/api/users", response_model=List[schemas.User], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_users(db: Session = Depends(database.get_db)):
-    """Mengambil daftar semua pengguna (hanya Superadmin)."""
+    """Mengambil daftar semua pengguna (Admin dan Superadmin)."""
     # 1. Ambil semua data pengguna dari database
     users_db = db.query(models.User).all()
     

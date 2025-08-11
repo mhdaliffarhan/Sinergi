@@ -40,9 +40,11 @@
 
 <script setup>
 import { useUIStore } from '@/stores/ui';
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 
 const uiStore = useUIStore();
+const authStore = useAuthStore();
 
 // Logika untuk mendeteksi layar mobile
 const isMobile = ref(window.innerWidth < 768);
@@ -51,37 +53,42 @@ onMounted(() => window.addEventListener('resize', updateIsMobile));
 onUnmounted(() => window.removeEventListener('resize', updateIsMobile));
 
 // Struktur Menu (tidak berubah)
-const menuItems = ref([
-  { label: 'Dashboard', to: '/dashboard', icon: '📊' },
-  { 
-    label: 'Aktivitas', 
-    icon: '⏳',
-    children: [
-      { label: 'Dashboard', to: '/aktivitas/dashboard' },
-      { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
-    ]
-  },
-  { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
-  { 
-    label: 'Inventori', 
-    icon: '📦',
-    children: [
-      { label: 'Daftar Aktivitas', to: '/inventori/aktivitas' },
-      { label: 'Buat Baru', to: '/inventori/baru' },
-    ]
-  },
-  { label: 'Pencarian Dokumen', to: '/dokumen', icon: '📂' },
-  { 
-    label: 'Admin', 
-    icon: '⏳',
-    children: [
-      { label: 'Manajemen User', to: '/admin/manajemen-user' },
-      { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
-    ]
-  },
-]);
+const menuItems = computed(() => {
+  const baseMenu = [
+    { label: 'Dashboard', to: '/dashboard', icon: '📊' },
+    { 
+      label: 'Aktivitas', 
+      icon: '⏳',
+      children: [
+        { label: 'Dashboard', to: '/aktivitas/dashboard' },
+        { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
+      ]
+    },
+    { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
+    { 
+      label: 'Inventori', 
+      icon: '📦',
+      children: [
+        { label: 'Daftar Aktivitas', to: '/inventori/aktivitas' },
+        { label: 'Buat Baru', to: '/inventori/baru' },
+      ]
+    },
+    { label: 'Pencarian Dokumen', to: '/dokumen', icon: '📂' },
+  ];
+  if (authStore.isAdmin) {
+    baseMenu.push({
+      label: 'Admin', 
+      icon: '🧑🏻‍💻',
+      children: [
+        { label: 'Manajemen User', to: '/admin/users' },
+      ]
+    });
+  }
 
-// --- PERBAIKAN UTAMA ADA DI SINI ---
+  return baseMenu;
+});
+
+
 
 // 1. Gunakan ref({}) sebagai ganti reactive({}) untuk fleksibilitas.
 const openDropdowns = ref({});

@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useToast } from 'vue-toastification'
 
 import LandingView from '@/views/LandingView.vue'
 import DashboardView from '../views/DashboardView.vue'
@@ -46,30 +47,40 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
-      path: '/admin/manajemen-user',
+      path: '/admin/users',
       name: 'manajemen-user',
       component: () => import('../views/admin/UserManagementView.vue'),
-      meta: { requiresAuth: true }
+      meta: {
+        requiresAuth: true,
+        requiredRoles: ['Superadmin', 'Admin']
+      }
     },
   ],
 })
 
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
+  const authStore = useAuthStore();
+  const toast = useToast();
 
-  // Jika ada token tapi belum ada data user, coba ambil dulu
   if (authStore.token && !authStore.user) {
     await authStore.fetchUser();
   }
 
-  // Jika halaman tujuan butuh login DAN pengguna belum login
-  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
-    // Arahkan (redirect) pengguna ke halaman login
-    next({ name: 'login' })
-  } else {
-    // Jika tidak, biarkan pengguna melanjutkan
-    next()
+  const isAuthenticated = authStore.isAuthenticated;
+  const userRole = authStore.user?.sistemRole?.namaRole;
+
+  if (to.meta.requiresAuth && !isAuthenticated) {
+    return next({ name: 'login' });
   }
-})
+
+  if (to.meta.requiredRoles && isAuthenticated) {
+    if (!to.meta.requiredRoles.includes(userRole)) {
+      toast.error("Anda tidak memiliki hak akses ke halaman ini.");
+      return next({ name: 'dashboard' });
+    }
+  }
+
+  next();
+});
 
 export default router
