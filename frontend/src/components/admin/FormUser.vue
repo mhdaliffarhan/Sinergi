@@ -96,7 +96,7 @@ watchEffect(() => {
     form.namaLengkap = props.initialData.namaLengkap || '';
     form.sistemRoleId = props.initialData.sistemRole?.id || '';
     form.jabatanId = props.initialData.jabatan?.id || '';
-    form.password = ''; // Kosongkan password saat edit
+    form.password = ''; 
   }
 });
 

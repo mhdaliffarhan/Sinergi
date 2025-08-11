@@ -103,6 +103,27 @@ def get_all_users(db: Session = Depends(database.get_db)):
     # 4. Kembalikan data sebagai JSONResponse untuk kontrol penuh
     return JSONResponse(content=response_data)
 
+@app.put("/api/users/{user_id}", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Depends(database.get_db)):
+    """Memperbarui data pengguna (hanya Superadmin)."""
+    
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+    
+    # Ambil data yang dikirim sebagai dictionary snake_case, abaikan field yang kosong (None)
+    update_data = user_update.dict(exclude_unset=True)
+
+    # Perbarui setiap field di objek database
+    for key, value in update_data.items():
+        setattr(db_user, key, value)
+    
+    # Simpan perubahan
+    db.commit()
+    db.refresh(db_user)
+    
+    return db_user
+
 @app.get("/api/teams", response_model=List[schemas.Team], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_teams(db: Session = Depends(database.get_db)):
     return db.query(models.Team).all()

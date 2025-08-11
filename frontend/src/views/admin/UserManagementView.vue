@@ -23,111 +23,121 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="user in users" :key="user.id" class="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
-            <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-              {{ user.namaLengkap }}
-            </th>
-            <td class="px-6 py-4">
-              {{ user.username }}
-            </td>
-            <td class="px-6 py-4">
-              {{ user.jabatan?.namaJabatan || '-' }}
-            </td>
+          <tr v-for="user in users" :key="user.id" class="border-b border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer">
+            <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ user.namaLengkap }}</th>
+            <td class="px-6 py-4">{{ user.username }}</td>
+            <td class="px-6 py-4">{{ user.jabatan?.namaJabatan || '-' }}</td>
             <td class="px-6 py-4">
               <span v-if="user.sistemRole" class="px-2 py-1 text-xs font-semibold rounded-full" :class="getRoleClass(user.sistemRole.namaRole)">
                 {{ user.sistemRole.namaRole }}
               </span>
-              <span v-else>-</span>
             </td>
             <td class="px-6 py-4">
-              <span :class="user.isActive ? 'text-green-500' : 'text-red-500'">
-                {{ user.isActive ? 'Aktif' : 'Non-Aktif' }}
-              </span>
+              <span :class="user.isActive ? 'text-green-500' : 'text-red-500'">{{ user.isActive ? 'Aktif' : 'Non-Aktif' }}</span>
             </td>
             <td class="px-6 py-4 text-right">
-              <button class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
+              <button @click="openEditModal(user)" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
 
-    <ModalWrapper :show="isModalOpen" @close="closeModal" title="Tambah Pengguna Baru">
+    <ModalWrapper :show="isModalOpen" @close="closeModal" :title="modalTitle">
       <FormUser
-        :is-edit-mode="false"
+        :is-edit-mode="isEditMode"
+        :initial-data="userToEdit"
         :sistem-roles="sistemRoles"
         :jabatan-list="jabatanList"
         @close="closeModal"
         @submit="handleUserSubmit"
-    />
+      />
     </ModalWrapper>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
-import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
-
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormUser from '@/components/admin/FormUser.vue';
 
-const authStore = useAuthStore();
 const toast = useToast();
 const users = ref([]);
-
-// State untuk modal
 const isModalOpen = ref(false);
-
-// State untuk menampung data dropdown
 const sistemRoles = ref([]);
 const jabatanList = ref([]);
+const isEditMode = ref(false);
+const userToEdit = ref(null);
 
-// Fungsi untuk mengambil semua data yang dibutuhkan halaman ini
+const modalTitle = computed(() => isEditMode.value ? 'Edit Pengguna' : 'Tambah Pengguna Baru');
+
 const fetchData = async () => {
   try {
-    // Ambil daftar pengguna
-    const usersResponse = await axios.get('http://127.0.0.1:8000/api/users');
-    users.value = usersResponse.data;
-    // Ambil daftar peran sistem
-    const rolesResponse = await axios.get('http://127.0.0.1:8000/api/sistem-roles');
-    sistemRoles.value = rolesResponse.data;
-
-    // Ambil daftar jabatan
-    const jabatanResponse = await axios.get('http://127.0.0.1:8000/api/jabatan');
-    jabatanList.value = jabatanResponse.data;
-    toast.success("Berhasil memuat data pengguna.");
+    const [usersRes, rolesRes, jabatanRes] = await Promise.all([
+      axios.get('http://127.0.0.1:8000/api/users'),
+      axios.get('http://127.0.0.1:8000/api/sistem-roles'),
+      axios.get('http://127.0.0.1:8000/api/jabatan')
+    ]);
+    users.value = usersRes.data;
+    sistemRoles.value = rolesRes.data;
+    jabatanList.value = jabatanRes.data;
   } catch (error) {
-    toast.error("Gagal memuat data pengguna.");
+    toast.error("Gagal memuat data administrasi.");
     console.error("Gagal mengambil data:", error);
   }
 };
 
-// Panggil fetchData saat komponen dimuat
 onMounted(() => {
   fetchData();
 });
 
-// Fungsi untuk mengelola modal
-const openCreateModal = () => { isModalOpen.value = true; };
-const closeModal = () => { isModalOpen.value = false; };
+const openCreateModal = () => {
+  isEditMode.value = false;
+  userToEdit.value = null;
+  isModalOpen.value = true;
+};
 
-// Fungsi untuk mengirim data user baru ke backend
+const openEditModal = (user) => {
+  isEditMode.value = true;
+  userToEdit.value = user;
+  isModalOpen.value = true;
+};
+
+const closeModal = () => {
+  isModalOpen.value = false;
+  userToEdit.value = null;
+};
+
 const handleUserSubmit = async (formData) => {
+  const payload = {
+    username: formData.username,
+    namaLengkap: formData.namaLengkap,
+    sistemRoleId: formData.sistemRoleId,
+    jabatanId: formData.jabatanId,
+  };
+  if (!isEditMode.value) {
+    payload.password = formData.password;
+  }
+
   try {
-    await axios.post('http://127.0.0.1:8000/api/users', formData);
-    toast.success(`Pengguna "${formData.username}" berhasil dibuat.`);
+    if (isEditMode.value) {
+      console.log('Data :', payload);
+      await axios.put(`http://127.0.0.1:8000/api/users/${userToEdit.value.id}`, payload);
+      toast.success(`Pengguna "${payload.username}" berhasil diperbarui.`);
+    } else {
+      await axios.post('http://127.0.0.1:8000/api/users', payload);
+      toast.success(`Pengguna "${payload.username}" berhasil dibuat.`);
+    }
     closeModal();
-    await fetchData(); // Muat ulang data untuk menampilkan pengguna baru
+    await fetchData();
   } catch (error) {
-    const errorMsg = error.response?.data?.detail || "Gagal membuat pengguna.";
+    const errorMsg = error.response?.data?.detail || "Terjadi kesalahan.";
     toast.error(errorMsg);
-    console.error(error);
   }
 };
 
-// Fungsi untuk styling badge (tidak berubah)
 const getRoleClass = (roleName) => {
   if (roleName === 'Superadmin') return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
   if (roleName === 'Admin') return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';

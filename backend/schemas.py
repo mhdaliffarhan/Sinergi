@@ -35,6 +35,12 @@ class UserCreate(UserBase):
     sistem_role_id: int
     jabatan_id: int
 
+class UserUpdate(CamelModel):
+    nama_lengkap: Optional[str] = None
+    sistem_role_id: Optional[int] = None
+    jabatan_id: Optional[int] = None
+    is_active: Optional[bool] = None
+
 class User(UserBase):
     id: int
     is_active: bool
