@@ -36,7 +36,12 @@
               <span :class="user.isActive ? 'text-green-500' : 'text-red-500'">{{ user.isActive ? 'Aktif' : 'Non-Aktif' }}</span>
             </td>
             <td class="px-6 py-4 text-right">
-              <button @click="openEditModal(user)" class="font-medium text-blue-600 dark:text-blue-500 hover:underline">Edit</button>
+               <button @click="openEditModal(user)" class="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/50 transition-colors">
+                  <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                </button>
+              <button @click="confirmDeleteUser(user)" class="p-2 rounded-full text-gray-500 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/50">
+                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
             </td>
           </tr>
         </tbody>
@@ -108,6 +113,25 @@ const openEditModal = (user) => {
 const closeModal = () => {
   isModalOpen.value = false;
   userToEdit.value = null;
+};
+
+const deleteUser = async (userId, username) => {
+  try {
+    await axios.delete(`http://127.0.0.1:8000/api/users/${userId}`);
+    toast.success(`Pengguna "${username}" berhasil dihapus.`);
+    await fetchData();
+  } catch (error) {
+    const errorMsg = error.response?.data?.detail || "Gagal menghapus pengguna.";
+    toast.error(errorMsg);
+    console.error(error);
+  }
+};
+
+const confirmDeleteUser = (user) => {
+  if (window.confirm(`Apakah Anda yakin ingin menghapus pengguna "${user.username}"? Tindakan ini tidak dapat dibatalkan.`)) {
+    closeModal();
+    deleteUser(user.id, user.username);
+  }
 };
 
 const handleUserSubmit = async (formData) => {

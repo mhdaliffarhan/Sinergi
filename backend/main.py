@@ -124,6 +124,25 @@ def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Dep
     
     return db_user
 
+# --- ENDPOINT BARU UNTUK MENGHAPUS USER ---
+@app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def delete_user(user_id: int, db: Session = Depends(database.get_db)):
+    """Menghapus pengguna berdasarkan ID (hanya Superadmin)."""
+    
+    # Cari pengguna di database
+    user_query = db.query(models.User).filter(models.User.id == user_id)
+    db_user = user_query.first()
+    
+    if db_user is None:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+        
+    # Hapus pengguna
+    user_query.delete(synchronize_session=False)
+    db.commit()
+    
+    # Kembalikan respons tanpa konten
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 @app.get("/api/teams", response_model=List[schemas.Team], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_teams(db: Session = Depends(database.get_db)):
     return db.query(models.Team).all()
