@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey, Table, Boolean
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey, Table, Boolean, DATE
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -62,6 +62,8 @@ class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
     nama_tim = Column(String, unique=True, index=True)
+    valid_from = Column(DATE, nullable=True)
+    valid_until = Column(DATE, nullable=True)
     users = relationship("User", secondary=user_team_link, back_populates="teams")
 
 class SistemRole(Base):

@@ -72,6 +72,7 @@ const menuItems = computed(() => {
       icon: '🧑🏻‍💻',
       children: [
         { label: 'Manajemen User', to: '/admin/users' },
+        { label: 'Manajemen Tim', to: '/admin/teams'},
       ]
     });
   }

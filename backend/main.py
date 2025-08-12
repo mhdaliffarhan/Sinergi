@@ -145,7 +145,19 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
 
 @app.get("/api/teams", response_model=List[schemas.Team], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_teams(db: Session = Depends(database.get_db)):
-    return db.query(models.Team).all()
+    teams_db = db.query(models.Team).all()
+    response_data = [schemas.Team.from_orm(team) for team in teams_db]
+    return response_data
+
+@app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)):
+    """Membuat tim baru (hanya Superadmin)."""
+    team_data = team.dict(by_alias=False)
+    db_team = models.Team(**team_data)
+    db.add(db_team)
+    db.commit()
+    db.refresh(db_team)
+    return db_team
 
 # --- ENDPOINT BARU UNTUK UPDATE TIM ---
 @app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])

@@ -14,12 +14,22 @@ class CamelModel(BaseModel):
         from_attributes=True          
     )
 
-class Team(CamelModel):
-    id: int
+class TeamBase(CamelModel):
+    # Definisikan semua atribut dengan snake_case
     nama_tim: str
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+
+class TeamCreate(TeamBase):
+    pass
 
 class TeamUpdate(CamelModel):
-    namaTim: str
+    nama_tim: Optional[str] = None
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+
+class Team(TeamBase):
+    id: int
 
 class Jabatan(CamelModel):
     id: int

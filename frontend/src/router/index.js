@@ -55,6 +55,15 @@ const router = createRouter({
         requiredRoles: ['Superadmin', 'Admin']
       }
     },
+    {
+      path: '/admin/teams',
+      name: 'admin-teams',
+      component: () => import('../views/admin/TeamManagementView.vue'),
+      meta: {
+        requiresAuth: true,
+        requiredRoles: ['Superadmin', 'Admin']
+      }
+    },
   ],
 })
 
