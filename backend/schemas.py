@@ -18,6 +18,9 @@ class Team(CamelModel):
     id: int
     nama_tim: str
 
+class TeamUpdate(CamelModel):
+    namaTim: str
+
 class Jabatan(CamelModel):
     id: int
     nama_jabatan: str
@@ -83,7 +86,7 @@ class AktivitasCreate(AktivitasBase):
     @classmethod
     def check_required_fields(cls, data: Any) -> Any:
         if isinstance(data, dict):
-            use_date_range = data.get('useDateRange') # Di sini tetap pakai camelCase karena data datang dari JSON
+            use_date_range = data.get('useDateRange')
             if not use_date_range:
                 if not data.get('tanggalMulai'):
                     raise ValueError('Tanggal Pelaksanaan wajib diisi.')

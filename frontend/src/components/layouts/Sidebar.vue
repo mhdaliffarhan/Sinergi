@@ -65,15 +65,6 @@ const menuItems = computed(() => {
       ]
     },
     { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
-    { 
-      label: 'Inventori', 
-      icon: '📦',
-      children: [
-        { label: 'Daftar Aktivitas', to: '/inventori/aktivitas' },
-        { label: 'Buat Baru', to: '/inventori/baru' },
-      ]
-    },
-    { label: 'Pencarian Dokumen', to: '/dokumen', icon: '📂' },
   ];
   if (authStore.isAdmin) {
     baseMenu.push({

@@ -33,12 +33,12 @@
                         Unduh Semua File     
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }">
+                    <MenuItem v-slot="{ active }" v-if="authStore.user?.jabatan?.namaJabatan === 'Ketua Tim'">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Aktivitas
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }">
+                    <MenuItem v-slot="{ active }" v-if="authStore.user?.jabatan?.namaJabatan === 'Ketua Tim'">
                       <button @click="confirmDeleteActivity" :class="[active ? 'bg-red-100 dark:bg-red-800' : '', 'text-red-700 dark:text-red-300 block w-full text-left px-4 py-2 text-sm']">
                         Hapus Aktivitas
                       </button>
@@ -128,6 +128,7 @@
 import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
+import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
@@ -146,6 +147,7 @@ const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 const aktivitasId = route.params.id;
+const authStore = useAuthStore();
 
 const aktivitas = ref(null);
 const isLoading = ref(true);

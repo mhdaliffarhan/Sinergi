@@ -147,6 +147,40 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
 def get_all_teams(db: Session = Depends(database.get_db)):
     return db.query(models.Team).all()
 
+# --- ENDPOINT BARU UNTUK UPDATE TIM ---
+@app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Depends(database.get_db)):
+    """Memperbarui nama tim (hanya Superadmin)."""
+    
+    db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
+    if not db_team:
+        raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
+    
+    # Ambil data dari Pydantic dan perbarui model
+    update_data = team_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(db_team, key, value)
+        
+    db.commit()
+    db.refresh(db_team)
+    return db_team
+
+# --- ENDPOINT BARU UNTUK HAPUS TIM ---
+@app.delete("/api/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def delete_team(team_id: int, db: Session = Depends(database.get_db)):
+    """Menghapus tim (hanya Superadmin)."""
+    
+    team_query = db.query(models.Team).filter(models.Team.id == team_id)
+    db_team = team_query.first()
+
+    if db_team is None:
+        raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
+        
+    team_query.delete(synchronize_session=False)
+    db.commit()
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 @app.get("/api/sistem-roles", response_model=List[schemas.SistemRole])
 def get_all_sistem_roles(db: Session = Depends(database.get_db)):
     """Mengembalikan semua peran sistem yang tersedia."""
