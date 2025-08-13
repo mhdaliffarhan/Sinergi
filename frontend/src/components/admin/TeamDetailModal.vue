@@ -79,10 +79,10 @@ const fetchData = async () => {
   try {
     const [teamDetailsRes, allUsersRes] = await Promise.all([
       axios.get(`http://127.0.0.1:8000/api/teams/${props.team.id}`),
-      axios.get('http://127.0.0.1:8000/api/users')
+      axios.get('http://127.0.0.1:8000/api/users', { params: { limit: 1000 } })
     ]);
-    teamMembers.value = teamDetailsRes.data.users;
-    allUsers.value = allUsersRes.data;
+    teamMembers.value = teamDetailsRes.data.users || [];
+    allUsers.value = allUsersRes.data.items || [];
   } catch (error) {
     toast.error("Gagal memuat data anggota.");
   }
@@ -107,8 +107,8 @@ const handleUpdate = (formData) => {
 const addMember = async (user) => {
   try {
     const response = await axios.post(`http://127.0.0.1:8000/api/teams/${props.team.id}/members?user_id=${user.id}`);
-    teamMembers.value = response.data.users;
-    toast.success(`"${user.namaLengkap}" berhasil ditambahkan ke tim.`);
+    teamMembers.value = response.data.users || [];
+    toast.success(`"${user.namaLengkap}" berhasil ditambahkan.`);
   } catch (error) {
     toast.error("Gagal menambahkan anggota.");
   }
@@ -117,8 +117,8 @@ const addMember = async (user) => {
 const removeMember = async (member) => {
   try {
     const response = await axios.delete(`http://127.0.0.1:8000/api/teams/${props.team.id}/members/${member.id}`);
-    teamMembers.value = response.data.users;
-    toast.success(`"${member.namaLengkap}" berhasil dikeluarkan dari tim.`);
+    teamMembers.value = response.data.users || [];
+    toast.success(`"${member.namaLengkap}" berhasil dikeluarkan.`);
   } catch (error) {
     toast.error("Gagal mengeluarkan anggota.");
   }

@@ -13,25 +13,9 @@ class CamelModel(BaseModel):
         populate_by_name=True, 
         from_attributes=True          
     )
-
-class TeamBase(CamelModel):
-    # Definisikan semua atribut dengan snake_case
-    nama_tim: str
-    valid_from: Optional[date] = None
-    valid_until: Optional[date] = None
-
-class TeamCreate(TeamBase):
-    pass
-
-class TeamUpdate(CamelModel):
-    nama_tim: Optional[str] = None
-    valid_from: Optional[date] = None
-    valid_until: Optional[date] = None
-
-class Team(TeamBase):
-    id: int
-    users: List['User'] = []
-    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
+# ===================================================================
+# SKEMA UNTUK PERAN & JABATAN
+# ===================================================================
 
 class Jabatan(CamelModel):
     id: int
@@ -41,6 +25,37 @@ class SistemRole(CamelModel):
     id: int
     nama_role: str
 
+# ===================================================================
+# SKEMA UNTUK TEAM
+# ===================================================================
+
+class TeamBase(CamelModel):
+    nama_tim: str
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+
+class TeamCreate(TeamBase):
+    pass
+
+class TeamInUser(TeamBase):
+    id: int
+
+class TeamInList(TeamBase):
+    id: int    
+
+class TeamUpdate(CamelModel):
+    nama_tim: Optional[str] = None
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+
+class Team(TeamBase):
+    id: int
+    users: List['User'] = []
+
+# ===================================================================
+# SKEMA UNTUK USER
+# ===================================================================
+
 class UserBase(CamelModel):
     username: str
     nama_lengkap: Optional[str] = None
@@ -49,6 +64,13 @@ class UserCreate(UserBase):
     password: str
     sistem_role_id: int
     jabatan_id: int
+
+class UserWithTeams(UserBase):
+    id: int
+    is_active: bool
+    sistem_role: SistemRole
+    jabatan: Optional[Jabatan] = None
+    teams: List[TeamInUser] = []
 
 class UserUpdate(CamelModel):
     nama_lengkap: Optional[str] = None
@@ -61,7 +83,11 @@ class User(UserBase):
     is_active: bool
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
-    teams: List[Team] = []
+    teams: List[TeamInList] = []
+
+# ===================================================================
+# SKEMA UNTUK DOKUMEN & LAINNYA
+# ===================================================================
 
 class Dokumen(CamelModel):
     id: int
@@ -122,6 +148,9 @@ class Token(CamelModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
+class DokumenCreate(BaseModel): # Tidak perlu konversi
+    keterangan: str
+    pathAtauUrl: str
 class UserPage(CamelModel):
     total: int
     items: List[User]
@@ -130,6 +159,5 @@ class TeamPage(CamelModel):
     total: int
     items: List[Team]
 
-class DokumenCreate(BaseModel): # Tidak perlu konversi
-    keterangan: str
-    pathAtauUrl: str
+Team.model_rebuild()
+User.model_rebuild()

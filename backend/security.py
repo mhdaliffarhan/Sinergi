@@ -52,7 +52,8 @@ def get_user(db: Session, username: str):
     """Mencari user berdasarkan username beserta relasinya."""
     return db.query(models.User).options(
         joinedload(models.User.sistem_role),
-        joinedload(models.User.jabatan)
+        joinedload(models.User.jabatan),
+        joinedload(models.User.teams)
     ).filter(models.User.username == username).first()
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):

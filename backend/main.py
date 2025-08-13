@@ -43,7 +43,7 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
     content = {"accessToken": token, "tokenType": "bearer"}
     return JSONResponse(content=content)
 
-@app.get("/users/me", response_model=schemas.User)
+@app.get("/users/me", response_model=schemas.UserWithTeams, response_model_by_alias=True)
 def read_users_me(current_user: models.User = Depends(security.get_current_user)):
     return current_user
 
@@ -147,14 +147,18 @@ def get_all_teams(
     limit: int = 10,
     search: Optional[str] = None
 ):
+    """Mengambil daftar semua tim dengan pagination dan pencarian."""
+    
     query = db.query(models.Team)
+    
     if search:
         search_term = f"%{search}%"
         query = query.filter(models.Team.nama_tim.ilike(search_term))
 
     total_teams = query.count()
-    teams_db = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
     
+    teams_db = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
+
     return {"total": total_teams, "items": teams_db}
 
 @app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
@@ -208,8 +212,10 @@ def get_team_details(team_id: int, db: Session = Depends(database.get_db)):
     """Mengambil detail satu tim, termasuk daftar anggotanya."""
     
     # Gunakan joinedload untuk mengambil data anggota sekaligus
+    # Gunakan joinedload untuk mengambil data anggota sekaligus
     db_team = db.query(models.Team).options(
-        joinedload(models.Team.users)
+        joinedload(models.Team.users).joinedload(models.User.jabatan),
+        joinedload(models.Team.users).joinedload(models.User.sistem_role)
     ).filter(models.Team.id == team_id).first()
     
     if not db_team:
@@ -230,9 +236,11 @@ def add_team_member(team_id: int, user_id: int, db: Session = Depends(database.g
     if db_user in db_team.users:
         raise HTTPException(status_code=400, detail="Pengguna sudah menjadi anggota tim ini")
 
-    db_team.users.append(db_user)
-    db.commit()
-    db.refresh(db_team)
+    if db_user not in db_team.users:
+        db_team.users.append(db_user)
+        db.commit()
+        db.refresh(db_team)
+
     return db_team
 
 @app.delete("/api/teams/{team_id}/members/{user_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
@@ -248,9 +256,11 @@ def remove_team_member(team_id: int, user_id: int, db: Session = Depends(databas
     if db_user not in db_team.users:
         raise HTTPException(status_code=400, detail="Pengguna bukan anggota tim ini")
 
-    db_team.users.remove(db_user)
-    db.commit()
-    db.refresh(db_team)
+    if db_user in db_team.users:
+        db_team.users.remove(db_user)
+        db.commit()
+        db.refresh(db_team)
+
     return db_team
 
 @app.get("/api/sistem-roles", response_model=List[schemas.SistemRole])
