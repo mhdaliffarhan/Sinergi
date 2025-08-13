@@ -30,6 +30,8 @@ class TeamUpdate(CamelModel):
 
 class Team(TeamBase):
     id: int
+    users: List['User'] = []
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
 
 class Jabatan(CamelModel):
     id: int
@@ -119,6 +121,14 @@ class Token(CamelModel):
 
 class TokenData(BaseModel):
     username: Optional[str] = None
+
+class UserPage(CamelModel):
+    total: int
+    items: List[User]
+
+class TeamPage(CamelModel):
+    total: int
+    items: List[Team]
 
 class DokumenCreate(BaseModel): # Tidak perlu konversi
     keterangan: str

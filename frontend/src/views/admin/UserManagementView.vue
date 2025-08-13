@@ -1,13 +1,26 @@
 <template>
   <div>
-    <div class="flex items-center justify-between mb-6">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
       <div>
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Manajemen Pengguna</h1>
-        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Buat, edit, dan kelola pengguna sistem.</p>
+        <div class="mt-4 relative">
+          <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <svg class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+          </div>
+          <input 
+            type="text" 
+            v-model="searchQuery"
+            placeholder="Cari berdasarkan nama atau username..."
+            class="block w-full sm:w-80 pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
       </div>
-      <button @click="openCreateModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700">
-        + Tambah Pengguna
-      </button>
+      <div>
+        <button @click="openCreateModal" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg shadow-md hover:bg-blue-700">
+          + Tambah Pengguna
+        </button>
+      </div>
+      
     </div>
 
     <div class="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
@@ -47,6 +60,13 @@
         </tbody>
       </table>
     </div>
+    <Pagination
+        v-if="totalUsers > 0"
+        :current-page="currentPage"
+        :total-items="totalUsers"
+        :items-per-page="itemsPerPage"
+        @page-changed="handlePageChange"
+      />
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" :title="modalTitle">
       <FormUser
@@ -62,11 +82,12 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormUser from '@/components/admin/FormUser.vue';
+import Pagination from '@/components/Pagination.vue';
 
 const toast = useToast();
 const users = ref([]);
@@ -75,28 +96,64 @@ const sistemRoles = ref([]);
 const jabatanList = ref([]);
 const isEditMode = ref(false);
 const userToEdit = ref(null);
+const currentPage = ref(1);
+const itemsPerPage = ref(10);
+const totalUsers = ref(0);
+const searchQuery = ref('');
+let debounceTimer = null;
 
 const modalTitle = computed(() => isEditMode.value ? 'Edit Pengguna' : 'Tambah Pengguna Baru');
 
 const fetchData = async () => {
   try {
-    const [usersRes, rolesRes, jabatanRes] = await Promise.all([
-      axios.get('http://127.0.0.1:8000/api/users'),
-      axios.get('http://127.0.0.1:8000/api/sistem-roles'),
-      axios.get('http://127.0.0.1:8000/api/jabatan')
-    ]);
-    users.value = usersRes.data;
-    sistemRoles.value = rolesRes.data;
-    jabatanList.value = jabatanRes.data;
+    // Hitung 'skip' berdasarkan halaman saat ini
+    const skip = (currentPage.value - 1) * itemsPerPage.value;
+
+    // Ambil data pengguna dengan parameter skip & limit
+    const usersResponse = await axios.get('http://127.0.0.1:8000/api/users', {
+      params: {
+        skip: skip,
+        limit: itemsPerPage.value,
+        search: searchQuery.value
+      }
+    });
+    users.value = usersResponse.data.items;
+    totalUsers.value = usersResponse.data.total;
+
+    // Ambil data peran dan jabatan (hanya jika belum ada)
+    if (sistemRoles.value.length === 0) {
+      const rolesResponse = await axios.get('http://127.0.0.1:8000/api/sistem-roles');
+      sistemRoles.value = rolesResponse.data;
+    }
+    if (jabatanList.value.length === 0) {
+      const jabatanResponse = await axios.get('http://127.0.0.1:8000/api/jabatan');
+      jabatanList.value = jabatanResponse.data;
+    }
   } catch (error) {
     toast.error("Gagal memuat data administrasi.");
     console.error("Gagal mengambil data:", error);
   }
 };
 
+watch(searchQuery, (newQuery) => {
+  // Reset ke halaman pertama setiap kali pencarian baru
+  currentPage.value = 1; 
+  // Hapus timer yang ada untuk mencegah request berlebihan
+  clearTimeout(debounceTimer);
+  // Atur timer baru. API hanya akan dipanggil setelah pengguna berhenti mengetik selama 500ms
+  debounceTimer = setTimeout(() => {
+    fetchData();
+  }, 500);
+});
+
 onMounted(() => {
   fetchData();
 });
+
+const handlePageChange = (newPage) => {
+  currentPage.value = newPage;
+  fetchData(); // Ambil data untuk halaman baru
+};
 
 const openCreateModal = () => {
   isEditMode.value = false;

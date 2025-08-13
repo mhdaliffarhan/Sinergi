@@ -3,7 +3,7 @@ from fastapi import (FastAPI, Depends, HTTPException, status, Response, File,
                      UploadFile, Form)
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import or_
+from sqlalchemy import or_, desc
 from sqlalchemy.orm import Session, joinedload  
 from typing import List,  Optional
 from fastapi.middleware.cors import CORSMiddleware
@@ -58,50 +58,47 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     hashed_password = security.get_password_hash(user.password)
     
     # --- PERBAIKAN DI SINI ---
-    # Saat membuat objek database (models.User), kita harus mengambil data dari
-    # atribut snake_case yang ada di objek Pydantic 'user'.
     new_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
-        nama_lengkap=user.nama_lengkap,      # Gunakan user.nama_lengkap (snake_case)
-        sistem_role_id=user.sistem_role_id, # Gunakan user.sistem_role_id (snake_case)
-        jabatan_id=user.jabatan_id          # Gunakan user.jabatan_id (snake_case)
+        nama_lengkap=user.nama_lengkap,
+        sistem_role_id=user.sistem_role_id,
+        jabatan_id=user.jabatan_id
     )
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
     return new_user
 
-@app.get("/api/users", response_model=List[schemas.User], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
-def get_all_users(db: Session = Depends(database.get_db)):
-    """Mengambil daftar semua pengguna (Admin dan Superadmin)."""
-    # 1. Ambil semua data pengguna dari database
-    users_db = db.query(models.User).all()
+@app.get("/api/users", response_model=schemas.UserPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def get_all_users(
+    db: Session = Depends(database.get_db),
+    skip: int = 0,  # Parameter untuk melewati data (halaman)
+    limit: int = 10,  # Parameter untuk jumlah data per halaman
+    search: Optional[str] = None
+):
+    """Mengambil daftar pengguna dengan pagination dan pencarian."""
     
-    # 2. Siapkan list kosong untuk menampung hasil
-    response_data = []
+    # Query dasar
+    query = db.query(models.User)
+    
+    # 2. Jika ada parameter search, tambahkan filter
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.User.username.ilike(search_term),
+                models.User.nama_lengkap.ilike(search_term)
+            )
+        )
 
-    # 3. Loop melalui setiap pengguna dan buat dictionary manual dengan camelCase
-    for user in users_db:
-        user_dict = {
-            "id": user.id,
-            "username": user.username,
-            "namaLengkap": user.nama_lengkap,
-            "isActive": user.is_active,
-            "sistemRole": {
-                "id": user.sistem_role.id,
-                "namaRole": user.sistem_role.nama_role
-            } if user.sistem_role else None,
-            "jabatan": {
-                "id": user.jabatan.id,
-                "namaJabatan": user.jabatan.nama_jabatan
-            } if user.jabatan else None,
-            "teams": [{"id": team.id, "namaTim": team.nama_tim} for team in user.teams]
-        }
-        response_data.append(user_dict)
+    # 3. Hitung total setelah difilter
+    total_users = query.count()
     
-    # 4. Kembalikan data sebagai JSONResponse untuk kontrol penuh
-    return JSONResponse(content=response_data)
+    # 4. Ambil data untuk halaman saat ini
+    users_db = query.offset(skip).limit(limit).all()
+    
+    return {"total": total_users, "items": users_db}
 
 @app.put("/api/users/{user_id}", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Depends(database.get_db)):
@@ -143,11 +140,22 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
     # Kembalikan respons tanpa konten
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.get("/api/teams", response_model=List[schemas.Team], dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
-def get_all_teams(db: Session = Depends(database.get_db)):
-    teams_db = db.query(models.Team).all()
-    response_data = [schemas.Team.from_orm(team) for team in teams_db]
-    return response_data
+@app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def get_all_teams(
+    db: Session = Depends(database.get_db),
+    skip: int = 0,
+    limit: int = 10,
+    search: Optional[str] = None
+):
+    query = db.query(models.Team)
+    if search:
+        search_term = f"%{search}%"
+        query = query.filter(models.Team.nama_tim.ilike(search_term))
+
+    total_teams = query.count()
+    teams_db = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
+    
+    return {"total": total_teams, "items": teams_db}
 
 @app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)):
@@ -192,6 +200,58 @@ def delete_team(team_id: int, db: Session = Depends(database.get_db)):
     db.commit()
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+# --- ENDPOINT BARU UNTUK MANAJEMEN ANGGOTA TIM ---
+
+@app.get("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def get_team_details(team_id: int, db: Session = Depends(database.get_db)):
+    """Mengambil detail satu tim, termasuk daftar anggotanya."""
+    
+    # Gunakan joinedload untuk mengambil data anggota sekaligus
+    db_team = db.query(models.Team).options(
+        joinedload(models.Team.users)
+    ).filter(models.Team.id == team_id).first()
+    
+    if not db_team:
+        raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
+    
+    return db_team
+
+@app.post("/api/teams/{team_id}/members", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def add_team_member(team_id: int, user_id: int, db: Session = Depends(database.get_db)):
+    """Menambahkan seorang pengguna ke dalam tim."""
+    db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+
+    if not db_team or not db_user:
+        raise HTTPException(status_code=404, detail="Tim atau User tidak ditemukan")
+
+    # Cek agar tidak duplikat
+    if db_user in db_team.users:
+        raise HTTPException(status_code=400, detail="Pengguna sudah menjadi anggota tim ini")
+
+    db_team.users.append(db_user)
+    db.commit()
+    db.refresh(db_team)
+    return db_team
+
+@app.delete("/api/teams/{team_id}/members/{user_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+def remove_team_member(team_id: int, user_id: int, db: Session = Depends(database.get_db)):
+    """Mengeluarkan seorang pengguna dari tim."""
+    db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
+    db_user = db.query(models.User).filter(models.User.id == user_id).first()
+
+    if not db_team or not db_user:
+        raise HTTPException(status_code=404, detail="Tim atau User tidak ditemukan")
+
+    # Cek apakah pengguna benar-benar anggota tim
+    if db_user not in db_team.users:
+        raise HTTPException(status_code=400, detail="Pengguna bukan anggota tim ini")
+
+    db_team.users.remove(db_user)
+    db.commit()
+    db.refresh(db_team)
+    return db_team
 
 @app.get("/api/sistem-roles", response_model=List[schemas.SistemRole])
 def get_all_sistem_roles(db: Session = Depends(database.get_db)):
