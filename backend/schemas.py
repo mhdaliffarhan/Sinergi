@@ -13,6 +13,7 @@ class CamelModel(BaseModel):
         populate_by_name=True, 
         from_attributes=True          
     )
+
 # ===================================================================
 # SKEMA UNTUK PERAN & JABATAN
 # ===================================================================
@@ -28,29 +29,33 @@ class SistemRole(CamelModel):
 # ===================================================================
 # SKEMA UNTUK TEAM
 # ===================================================================
-
-class TeamBase(CamelModel):
+class TeamInUser(CamelModel):
+    id: int
     nama_tim: str
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
 
+class UserInTeam(CamelModel):
+    id: int
+    username: str
+    nama_lengkap: Optional[str] = None
+    
+class TeamBase(CamelModel):
+    nama_tim: str
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+    ketua_tim_id: Optional[int] = None
+
 class TeamCreate(TeamBase):
     pass
 
-class TeamInUser(TeamBase):
-    id: int
-
-class TeamInList(TeamBase):
-    id: int    
-
-class TeamUpdate(CamelModel):
-    nama_tim: Optional[str] = None
-    valid_from: Optional[date] = None
-    valid_until: Optional[date] = None
+class TeamUpdate(TeamBase):
+    pass
 
 class Team(TeamBase):
     id: int
-    users: List['User'] = []
+    ketua_tim: Optional[UserInTeam] = None
+    users: List[UserInTeam] = []
 
 # ===================================================================
 # SKEMA UNTUK USER
@@ -83,7 +88,16 @@ class User(UserBase):
     is_active: bool
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
-    teams: List[TeamInList] = []
+    teams: List[TeamInUser] = []
+
+class UserPage(CamelModel):
+    total: int
+    items: List[User]
+
+class TeamPage(CamelModel):
+    total: int
+    items: List[Team]
+
 
 # ===================================================================
 # SKEMA UNTUK DOKUMEN & LAINNYA
@@ -151,13 +165,6 @@ class TokenData(BaseModel):
 class DokumenCreate(BaseModel): # Tidak perlu konversi
     keterangan: str
     pathAtauUrl: str
-class UserPage(CamelModel):
-    total: int
-    items: List[User]
-
-class TeamPage(CamelModel):
-    total: int
-    items: List[Team]
 
 Team.model_rebuild()
 User.model_rebuild()

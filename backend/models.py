@@ -61,9 +61,11 @@ class User(Base):
 class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
-    nama_tim = Column(String, unique=True, index=True)
+    nama_tim = Column(String, unique=False, index=True)
     valid_from = Column(DATE, nullable=True)
     valid_until = Column(DATE, nullable=True)
+    ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
     users = relationship("User", secondary=user_team_link, back_populates="teams")
 
 class SistemRole(Base):

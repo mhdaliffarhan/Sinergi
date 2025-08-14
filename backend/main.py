@@ -13,8 +13,10 @@ from datetime import timedelta
 import models, database, schemas, security
 import os, shutil, uuid, io, zipfile
 
+# ===================================================================
+# INISIALISASI & KONFIGURASI
+# ===================================================================
 models.Base.metadata.create_all(bind=database.engine)
-
 app = FastAPI()
 
 origins = ["http://localhost:5173"]
@@ -32,7 +34,9 @@ if not os.path.exists(UPLOAD_DIRECTORY):
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
-# --- OTENTIKASI & USER ---
+# ===================================================================
+# ENDPOINT OTENTIKASI & PENGGUNA
+# ===================================================================
 @app.post("/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(database.get_db)):
     user = security.get_user(db, username=form_data.username)
@@ -47,7 +51,9 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 def read_users_me(current_user: models.User = Depends(security.get_current_user)):
     return current_user
 
-# --- MANAJEMEN ADMIN ---
+# ===================================================================
+# ENDPOINT MANAJEMEN ADMIN
+# ===================================================================
 @app.post("/api/users", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
     """Membuat pengguna baru (hanya Superadmin)."""
@@ -57,7 +63,6 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     
     hashed_password = security.get_password_hash(user.password)
     
-    # --- PERBAIKAN DI SINI ---
     new_user = models.User(
         username=user.username,
         hashed_password=hashed_password,
@@ -73,32 +78,18 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
 @app.get("/api/users", response_model=schemas.UserPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_users(
     db: Session = Depends(database.get_db),
-    skip: int = 0,  # Parameter untuk melewati data (halaman)
-    limit: int = 10,  # Parameter untuk jumlah data per halaman
-    search: Optional[str] = None
+    skip: int = 0, limit: int = 10, search: Optional[str] = None
 ):
-    """Mengambil daftar pengguna dengan pagination dan pencarian."""
-    
-    # Query dasar
-    query = db.query(models.User)
-    
-    # 2. Jika ada parameter search, tambahkan filter
+    query = db.query(models.User).options(
+        joinedload(models.User.sistem_role),
+        joinedload(models.User.jabatan)
+    )
     if search:
-        search_term = f"%{search}%"
-        query = query.filter(
-            or_(
-                models.User.username.ilike(search_term),
-                models.User.nama_lengkap.ilike(search_term)
-            )
-        )
-
-    # 3. Hitung total setelah difilter
-    total_users = query.count()
+        query = query.filter(models.User.nama_lengkap.ilike(f"%{search}%"))
     
-    # 4. Ambil data untuk halaman saat ini
-    users_db = query.offset(skip).limit(limit).all()
-    
-    return {"total": total_users, "items": users_db}
+    total = query.count()
+    users = query.order_by(models.User.id.desc()).offset(skip).limit(limit).all()
+    return {"total": total, "items": users}
 
 @app.put("/api/users/{user_id}", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Depends(database.get_db)):
@@ -121,7 +112,7 @@ def update_user(user_id: int, user_update: schemas.UserUpdate, db: Session = Dep
     
     return db_user
 
-# --- ENDPOINT BARU UNTUK MENGHAPUS USER ---
+# --- ENDPOINT UNTUK MENGHAPUS USER ---
 @app.delete("/api/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def delete_user(user_id: int, db: Session = Depends(database.get_db)):
     """Menghapus pengguna berdasarkan ID (hanya Superadmin)."""
@@ -140,30 +131,8 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
     # Kembalikan respons tanpa konten
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
-def get_all_teams(
-    db: Session = Depends(database.get_db),
-    skip: int = 0,
-    limit: int = 10,
-    search: Optional[str] = None
-):
-    """Mengambil daftar semua tim dengan pagination dan pencarian."""
-    
-    query = db.query(models.Team)
-    
-    if search:
-        search_term = f"%{search}%"
-        query = query.filter(models.Team.nama_tim.ilike(search_term))
-
-    total_teams = query.count()
-    
-    teams_db = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
-
-    return {"total": total_teams, "items": teams_db}
-
 @app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)):
-    """Membuat tim baru (hanya Superadmin)."""
     team_data = team.dict(by_alias=False)
     db_team = models.Team(**team_data)
     db.add(db_team)
@@ -171,25 +140,30 @@ def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)
     db.refresh(db_team)
     return db_team
 
-# --- ENDPOINT BARU UNTUK UPDATE TIM ---
+@app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def get_all_teams(
+    db: Session = Depends(database.get_db),
+    skip: int = 0, limit: int = 10, search: Optional[str] = None
+):
+    query = db.query(models.Team).options(joinedload(models.Team.ketua_tim))
+    if search:
+        query = query.filter(models.Team.nama_tim.ilike(f"%{search}%"))
+    total = query.count()
+    teams = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
+    return {"total": total, "items": teams}
+
 @app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Depends(database.get_db)):
-    """Memperbarui nama tim (hanya Superadmin)."""
-    
     db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
     if not db_team:
         raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
-    
-    # Ambil data dari Pydantic dan perbarui model
-    update_data = team_update.dict(exclude_unset=True)
+    update_data = team_update.dict(exclude_unset=True, by_alias=False)
     for key, value in update_data.items():
         setattr(db_team, key, value)
-        
     db.commit()
     db.refresh(db_team)
     return db_team
 
-# --- ENDPOINT BARU UNTUK HAPUS TIM ---
 @app.delete("/api/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def delete_team(team_id: int, db: Session = Depends(database.get_db)):
     """Menghapus tim (hanya Superadmin)."""

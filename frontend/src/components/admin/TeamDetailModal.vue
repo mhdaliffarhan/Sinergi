@@ -22,6 +22,7 @@
       <div v-if="activeTab === 'detail'">
         <FormTim
           :initial-data="team"
+          :user-list="props.userList"
           @submit="handleUpdate"
           :is-edit-mode="true"
         />
@@ -64,7 +65,8 @@ import { useToast } from 'vue-toastification';
 import FormTim from '@/components/admin/FormTim.vue';
 
 const props = defineProps({
-  team: { type: Object, required: true }
+  team: { type: Object, required: true },
+  userList: { type: Array, required: true }
 });
 
 const emit = defineEmits(['close', 'teamUpdated']);

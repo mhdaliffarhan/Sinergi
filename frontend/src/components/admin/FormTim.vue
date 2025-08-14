@@ -15,6 +15,20 @@
         <p v-if="errors.namaTim" class="mt-1 text-xs text-red-500">{{ errors.namaTim }}</p>
       </div>
 
+      <div>
+        <label for="ketua-tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ketua Tim (Opsional)</label>
+        <select 
+          id="ketua-tim" 
+          v-model="form.ketuaTimId"
+          class="mt-1 block w-full px-3 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+        >
+          <option :value="null">-- Tidak ada ketua tim --</option>
+          <option v-for="user in userList" :key="user.id" :value="user.id">
+            {{ user.namaLengkap }}
+          </option>
+        </select>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="valid-from" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Periode Aktif Mulai</label>
@@ -56,6 +70,7 @@ import { reactive, watchEffect } from 'vue';
 
 const props = defineProps({
   initialData: { type: Object, default: null },
+  userList: { type: Array, required: true } // Prop baru untuk menerima daftar pengguna
 });
 
 const emit = defineEmits(['close', 'submit']);
@@ -64,6 +79,7 @@ const form = reactive({
   namaTim: '',
   validFrom: null,
   validUntil: null,
+  ketuaTimId: null, // State baru untuk menyimpan ID ketua tim
 });
 
 const errors = reactive({
@@ -72,9 +88,9 @@ const errors = reactive({
 });
 
 watchEffect(() => {
-  // Reset form dan error setiap kali data berubah
+  // Reset form
   Object.assign(form, {
-    namaTim: '', validFrom: null, validUntil: null
+    namaTim: '', validFrom: null, validUntil: null, ketuaTimId: null
   });
   Object.keys(errors).forEach(key => errors[key] = null);
 
@@ -82,11 +98,11 @@ watchEffect(() => {
     form.namaTim = props.initialData.namaTim || '';
     form.validFrom = props.initialData.validFrom?.split('T')[0] || null;
     form.validUntil = props.initialData.validUntil?.split('T')[0] || null;
+    form.ketuaTimId = props.initialData.ketuaTim?.id || null; // Isi ID ketua tim saat edit
   }
 });
 
 const validate = () => {
-  // Reset error sebelum validasi baru
   Object.keys(errors).forEach(key => errors[key] = null);
   let isValid = true;
 

@@ -26,6 +26,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 w-16">No</th>
             <th scope="col" class="px-6 py-3">Nama Tim</th>
+            <th scope="col" class="px-6 py-3">Ketua Tim</th>
             <th scope="col" class="px-6 py-3">Periode Aktif</th>
             <th scope="col" class="px-6 py-3">
               <span class="sr-only">Aksi</span>
@@ -39,6 +40,9 @@
           <tr v-for="(team, index) in teams" :key="team.id" class="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
             <td class="px-6 py-4 text-center">{{ index + 1 }}</td>
             <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">{{ team.namaTim }}</th>
+            <td class="px-6 py-4">
+              {{ team.ketuaTim?.namaLengkap || '-' }}
+            </td>
             <td class="px-6 py-4">{{ formatPeriode(team.validFrom, team.validUntil) }}</td>
             <td class="px-6 py-4 text-right">
               <button @click="openDetailModal(team)" class="p-2 rounded-full text-gray-500 hover:bg-blue-100 hover:text-blue-600 dark:hover:bg-blue-900/50 transition-colors">
@@ -62,13 +66,15 @@
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" :title="modalTitle">
       <FormTim
-          v-if="!isEditMode"
-          @close="closeModal"
-          @submit="handleTeamCreate"
+        v-if="!isEditMode"
+        :user-list="allUsers"
+        @close="closeModal" 
+        @submit="handleTeamCreate" 
       />
       <TeamDetailModal
           v-if="isEditMode && selectedTeam"
           :team="selectedTeam"
+          :user-list="allUsers"
           @close="closeModal"
           @teamUpdated="handleTeamUpdate"
       />
@@ -87,6 +93,7 @@ import Pagination from '@/components/Pagination.vue';
 
 const toast = useToast();
 const teams = ref([]);
+const allUsers = ref([]);
 const isLoading = ref(true);
 const isModalOpen = ref(false);
 const isEditMode = ref(false);
@@ -98,41 +105,53 @@ const searchQuery = ref('');
 let debounceTimer = null;
 
 const modalTitle = computed(() => {
-    return isEditMode.value ? `Kelola Tim: ${selectedTeam.value.namaTim}` : 'Tambah Tim Baru';
+    if (isEditMode.value && selectedTeam.value) {
+    return `Kelola Tim: ${selectedTeam.value.namaTim}`;
+  }
+  return 'Tambah Tim Baru';
 });
 
-const fetchTeams = async () => {
+const fetchData = async () => {
+  isLoading.value = true;
   try {
+    // Ambil data tim dan data semua pengguna secara bersamaan
     const skip = (currentPage.value - 1) * itemsPerPage.value;
-    const response = await axios.get('http://127.0.0.1:8000/api/teams', {
-      params: {
-        skip: skip,
-        limit: itemsPerPage.value,
-        search: searchQuery.value,
-      }
-    });
-    teams.value = response.data.items;
-    totalTeams.value = response.data.total;
+    const [teamsRes, usersRes] = await Promise.all([
+      axios.get('http://127.0.0.1:8000/api/teams', {
+        params: { 
+          skip: skip, 
+          limit: itemsPerPage.value, 
+          search: searchQuery.value }
+      }),
+      axios.get('http://127.0.0.1:8000/api/users', { params: { limit: 10000 } }) 
+    ]);
+    
+    teams.value = teamsRes.data.items;
+    totalTeams.value = teamsRes.data.total;
+    allUsers.value = usersRes.data.items;
+    console.log('data : ', teams.value);
+
   } catch (error) {
-    toast.error("Gagal memuat data tim.");
+    toast.error("Gagal memuat data administrasi.");
+    console.error("Gagal mengambil data:", error);
+  } finally {
+    isLoading.value = false;
   }
 };
 
-watch(searchQuery, (newQuery) => {
+onMounted(() => { fetchData(); });
+
+watch(searchQuery, () => {
   currentPage.value = 1;
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    fetchTeams();
+    fetchData();
   }, 500);
-});
-
-onMounted(() => {
-  fetchTeams();
 });
 
 const handlePageChange = (newPage) => {
   currentPage.value = newPage;
-  fetchTeams();
+  fetchData();
 };
 
 const formatPeriode = (start, end) => {
@@ -148,49 +167,53 @@ const openCreateModal = () => {
     isModalOpen.value = true;
 };
 
-const handleTeamCreate = async (formData) => {
-  try {
-    await axios.post('http://127.0.0.1:8000/api/teams', formData);
-    toast.success(`Tim "${formData.namaTim}" berhasil dibuat.`);
-    closeModal();
-    await fetchTeams();
-  } catch (error) {
-    toast.error(error.response?.data?.detail || "Gagal membuat tim.");
-  }
-};
-const handleTeamUpdate = async (formData) => {
-    try {
-        await axios.put(`http://127.0.0.1:8000/api/teams/${formData.id}`, formData);
-        toast.success(`Tim "${formData.namaTim}" berhasil diperbarui.`);
-        closeModal();
-        await fetchTeams();
-    } catch (error) {
-        toast.error(error.response?.data?.detail || "Gagal memperbarui tim.");
-    }
-};
 const openDetailModal = (team) => {
     isEditMode.value = true;
     selectedTeam.value = team;
     isModalOpen.value = true;
 };
+
 const closeModal = () => {
     isModalOpen.value = false;
     selectedTeam.value = null;
     isEditMode.value = false; 
 };
 
+const handleTeamCreate = async (formData) => {
+  try {
+    await axios.post('http://127.0.0.1:8000/api/teams', formData);
+    toast.success(`Tim "${formData.namaTim}" berhasil dibuat.`);
+    closeModal();
+    await fetchData();
+  } catch (error) {
+    toast.error(error.response?.data?.detail || "Gagal membuat tim.");
+  }
+};
 
-// --- Logika untuk HAPUS ---
+
+const handleTeamUpdate = async (formData) => {
+    try {
+      console.log('Data : ', formData);
+        await axios.put(`http://127.0.0.1:8000/api/teams/${formData.id}`, formData);
+        toast.success(`Tim "${formData.namaTim}" berhasil diperbarui.`);
+        closeModal();
+        await fetchData();
+    } catch (error) {
+        toast.error(error.response?.data?.detail || "Gagal memperbarui tim.");
+    }
+};
+
 const confirmDeleteTeam = (team) => {
   if (window.confirm(`Apakah Anda yakin ingin menghapus tim "${team.namaTim}"?`)) {
     deleteTeam(team.id);
   }
 };
+
 const deleteTeam = async (teamId) => {
   try {
     await axios.delete(`http://127.0.0.1:8000/api/teams/${teamId}`);
     toast.success("Tim berhasil dihapus.");
-    await fetchTeams();
+    await fetchData();
   } catch (error) {
     toast.error("Gagal menghapus tim.");
   }
