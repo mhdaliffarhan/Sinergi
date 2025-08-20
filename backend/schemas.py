@@ -76,6 +76,8 @@ class UserWithTeams(UserBase):
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
     teams: List[TeamInUser] = []
+    is_ketua_tim: bool = False
+    ketua_tim_aktif: List[Team] = []
 
 class UserUpdate(CamelModel):
     nama_lengkap: Optional[str] = None
@@ -122,18 +124,17 @@ class DaftarDokumen(CamelModel):
 class AktivitasBase(CamelModel):
     nama_aktivitas: str
     deskripsi: Optional[str] = None
-    tim_penyelenggara: Optional[str] = None
     use_date_range: Optional[bool] = False
     use_time: Optional[bool] = False
     tanggal_mulai: Optional[date] = None
     tanggal_selesai: Optional[date] = None
     jam_mulai: Optional[time] = None
     jam_selesai: Optional[time] = None
+    team_id: Optional[int] = None
+    creator_user_id: Optional[int] = None
 
-# Skema untuk MEMBUAT aktivitas (menerima data dari Vue)
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
-
     @model_validator(mode='before')
     @classmethod
     def check_required_fields(cls, data: Any) -> Any:
@@ -150,6 +151,8 @@ class AktivitasCreate(AktivitasBase):
 class Aktivitas(AktivitasBase):
     id: int
     dibuat_pada: datetime
+    creator: Optional[UserInTeam] = None
+    team: Optional[Team] = None
     dokumen: List[Dokumen] = []
     daftar_dokumen_wajib: List[DaftarDokumen] = []
 

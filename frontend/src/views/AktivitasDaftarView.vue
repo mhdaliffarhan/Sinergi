@@ -39,7 +39,7 @@
           </button>
         </div>
         
-        <button @click="openModal" class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+        <button v-if="authStore.user?.isKetuaTim" @click="openModal" class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
           <span>+</span>
           <span>Buat Baru</span>
         </button>
@@ -52,7 +52,7 @@
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Buat Aktivitas Baru">
-      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" />
+      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :team-list="teamList" />
     </ModalWrapper>
   </div>
 </template>
@@ -61,14 +61,17 @@
 import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { useAuthStore } from '@/stores/auth';
 
 import DaftarAktivitas from '@/components/aktivitas/DaftarAktivitas.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormBuatAktivitas from '@/components/aktivitas/FormBuatAktivitas.vue';
 import TabelAktivitas from '@/components/aktivitas/TabelAktivitas.vue';
 
+const authStore = useAuthStore();
 const toast = useToast();
 const aktivitas = ref([]);
+const teamList = ref([]);
 const isModalOpen = ref(false);
 const viewMode = ref('table');
 const isLoading = ref(false);
@@ -94,7 +97,9 @@ const fetchAktivitas = async (query = '') => {
     const response = await axios.get('http://127.0.0.1:8000/api/aktivitas', {
       params: { q: query }
     });
-    aktivitas.value = convertKeysToCamelCase(response.data);
+    console.log("Data Raw : ", response.data);
+    aktivitas.value = response.data;
+    console.log("Data : ", aktivitas.value);
   } catch (error) {
     toast.error("Gagal memuat data aktivitas.");
     console.error("Gagal mengambil data aktivitas:", error);
@@ -102,6 +107,21 @@ const fetchAktivitas = async (query = '') => {
     isLoading.value = false;
   }
 };
+
+const fetchTeams = async () => {
+  try {
+     const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+     console.log('Data : ', response.data);
+    teamList.value = response.data.map(team => ({
+      id: team.id,
+      namaTim: team.namaTim 
+    }));
+  } catch (error) {
+    toast.error("Gagal memuat daftar tim.");
+    console.error("Gagal mengambil data tim:", error);
+  }
+};
+
 
 watch(searchQuery, (newQuery) => {
   // Hapus timer yang ada setiap kali user mengetik
@@ -114,12 +134,14 @@ watch(searchQuery, (newQuery) => {
 
 onMounted(() => {
   fetchAktivitas();
+  fetchTeams();
 });
 
 // --- FUNGSI SUBMIT YANG MENGGABUNGKAN SEMUANYA ---
 const handleActivitySubmit = async (formData) => {
   // Buat salinan data form untuk kita modifikasi
   const payload = { ...formData };
+
 
   // Daftar field yang harus diubah dari string kosong menjadi null
   const nullableFields = ['tanggal', 'tanggalMulai', 'tanggalSelesai', 'jamMulai', 'jamSelesai'];

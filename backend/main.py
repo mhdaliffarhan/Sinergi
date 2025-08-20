@@ -3,12 +3,12 @@ from fastapi import (FastAPI, Depends, HTTPException, status, Response, File,
                      UploadFile, Form)
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from sqlalchemy import or_, desc
+from sqlalchemy import or_, desc, and_
 from sqlalchemy.orm import Session, joinedload  
 from typing import List,  Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from datetime import timedelta
+from datetime import timedelta, date
 
 import models, database, schemas, security
 import os, shutil, uuid, io, zipfile
@@ -78,15 +78,23 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
 @app.get("/api/users", response_model=schemas.UserPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_users(
     db: Session = Depends(database.get_db),
-    skip: int = 0, limit: int = 10, search: Optional[str] = None
+    skip: int = 0, 
+    limit: int = 10, 
+    search: Optional[str] = None
 ):
     query = db.query(models.User).options(
         joinedload(models.User.sistem_role),
         joinedload(models.User.jabatan)
     )
     if search:
-        query = query.filter(models.User.nama_lengkap.ilike(f"%{search}%"))
-    
+        search_term = f"%{search}%"
+        query = query.filter(
+            or_(
+                models.User.nama_lengkap.ilike(search_term),
+                models.User.username.ilike(search_term)
+            )
+        ).distinct()
+
     total = query.count()
     users = query.order_by(models.User.id.desc()).offset(skip).limit(limit).all()
     return {"total": total, "items": users}
@@ -143,7 +151,9 @@ def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)
 @app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def get_all_teams(
     db: Session = Depends(database.get_db),
-    skip: int = 0, limit: int = 10, search: Optional[str] = None
+    skip: int = 0, 
+    limit: int = 10, 
+    search: Optional[str] = None
 ):
     query = db.query(models.Team).options(joinedload(models.Team.ketua_tim))
     if search:
@@ -151,6 +161,24 @@ def get_all_teams(
     total = query.count()
     teams = query.order_by(desc(models.Team.valid_until), desc(models.Team.id)).offset(skip).limit(limit).all()
     return {"total": total, "items": teams}
+
+@app.get("/api/teams/active", response_model=list[schemas.Team], response_model_by_alias=True)
+def get_active_teams(
+    db: Session = Depends(database.get_db)
+):
+    today = date.today()
+    teams = (
+        db.query(models.Team)
+        .filter(
+            and_(
+                models.Team.valid_from <= today,
+                models.Team.valid_until >= today
+            )
+        )
+        .order_by(models.Team.nama_tim.asc())
+        .all()
+    )
+    return teams
 
 @app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Depends(database.get_db)):
@@ -253,9 +281,16 @@ def get_all_jabatan(db: Session = Depends(database.get_db)):
 
 # Hapus response_model_by_alias karena kita sudah menangani alias di skema
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
-def get_semua_aktivitas(db: Session = Depends(database.get_db), q: Optional[str] = None):
+def get_semua_aktivitas(
+        db: Session = Depends(database.get_db), 
+        q: Optional[str] = None,
+        current_user: models.User = Depends(security.get_current_user)
+):
     # Query dasar dengan eager loading dokumen
-    query = db.query(models.Aktivitas).options(joinedload(models.Aktivitas.dokumen))
+    query = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.creator),
+        joinedload(models.Aktivitas.team)
+    )
 
     # Jika ada parameter pencarian 'q'
     if q:
@@ -278,21 +313,32 @@ def get_semua_aktivitas(db: Session = Depends(database.get_db), q: Optional[str]
     return semua_aktivitas
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
-def create_aktivitas(aktivitas: schemas.AktivitasCreate, db: Session = Depends(database.get_db)):   
-    db_aktivitas = models.Aktivitas(
-        nama_aktivitas=aktivitas.nama_aktivitas,
-        deskripsi=aktivitas.deskripsi,
-        tim_penyelenggara=aktivitas.tim_penyelenggara,
-        jam_mulai=aktivitas.jam_mulai,
-        jam_selesai=aktivitas.jam_selesai
+def create_aktivitas(
+        aktivitas: schemas.AktivitasCreate, 
+        db: Session = Depends(database.get_db),
+        current_user: models.User = Depends(security.get_current_user)
+):   
+    aktivitas_data = aktivitas.dict(
+        exclude={
+            'daftar_dokumen_wajib',
+            'use_date_range',
+            'use_time'
+        },
+        by_alias=False
     )
+    aktivitas_data['creator_user_id'] = current_user.id
+    aktivitas_data['team_id'] = aktivitas.team_id
+
+    db_aktivitas = models.Aktivitas(**aktivitas_data)
 
     if aktivitas.use_date_range:
         db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
         db_aktivitas.tanggal_selesai = aktivitas.tanggal_selesai
     else:
         db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
-    
+        db_aktivitas.tanggal_selesai = None
+
+    # Tambahkan daftar dokumen wajib
     for nama_dok in aktivitas.daftar_dokumen_wajib:
         if nama_dok:
             db_daftar_dokumen = models.DaftarDokumen(nama_dokumen=nama_dok)

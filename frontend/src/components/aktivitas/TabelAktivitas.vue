@@ -19,14 +19,13 @@
           v-for="item in aktivitas" 
           :key="item.id" 
           @click="goToDetail(item.id)"
-          class="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors"
-        >
+          class="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
           <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
             {{ item.namaAktivitas }}
           </th>
           <td class="px-6 py-4">
             <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
-              {{ item.timPenyelenggara }}
+              {{ item.team?.namaTim || '-' }}
             </span>
           </td>
           <td class="px-6 py-4">

@@ -18,13 +18,16 @@ class Aktivitas(Base):
     jam_mulai = Column(Time, nullable=True)
     jam_selesai = Column(Time, nullable=True)
     dibuat_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
+    creator_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+
+    creator = relationship("User", back_populates="created_aktivitas")
+    team = relationship("Team", back_populates="aktivitas")
     dokumen = relationship("Dokumen", back_populates="aktivitas", cascade="all, delete-orphan")
     daftar_dokumen_wajib = relationship("DaftarDokumen", back_populates="aktivitas", cascade="all, delete-orphan")
 
-    # --- KELAS UNTUK TABEL DOKUMEN ---
 class Dokumen(Base):
     __tablename__ = "dokumen"
-
     id = Column(Integer, primary_key=True, index=True)
     keterangan = Column(Text, nullable=False)
     tipe = Column(String(10), nullable=False)
@@ -57,6 +60,7 @@ class User(Base):
     sistem_role = relationship("SistemRole")
     jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")
+    created_aktivitas = relationship("Aktivitas", back_populates="creator")
 
 class Team(Base):
     __tablename__ = "teams"
@@ -67,6 +71,7 @@ class Team(Base):
     ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
     users = relationship("User", secondary=user_team_link, back_populates="teams")
+    aktivitas = relationship("Aktivitas", back_populates="team")
 
 class SistemRole(Base):
     __tablename__ = "sistem_roles"

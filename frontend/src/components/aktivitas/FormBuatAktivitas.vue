@@ -27,20 +27,23 @@
       </div>
 
       <div>
-        <label for="tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tim Penyelenggara</label>
+        <label for="tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tim</label>
         <select 
           id="tim" 
-          v-model="form.timPenyelenggara"
-          :class="{ 'border-red-500': errors.timPenyelenggara }"
+          v-model="form.teamId"
+          :class="{ 'border-red-500': errors.teamId }"
           class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
         >
           <option disabled value="">Pilih tim</option>
-          <option>Tim Neraca</option>
-          <option>Tim SUTAS</option>
-          <option>Divisi IT</option>
-          <option>Tim Statistik Harga</option>
+          <option 
+            v-for="tim in daftarTim" 
+            :key="tim.id" 
+            :value="tim.id"
+          >
+            {{ tim.namaTim }}
+          </option>
         </select>
-        <p v-if="errors.timPenyelenggara" class="mt-1 text-xs text-red-500">{{ errors.timPenyelenggara }}</p>
+        <p v-if="errors.teamId" class="mt-1 text-xs text-red-500">{{ errors.teamId }}</p>
       </div>
 
       <hr class="border-gray-200 dark:border-gray-700">
@@ -135,22 +138,32 @@
 </template>
 
 <script setup>
-import { reactive, ref, watch } from 'vue';
+import { reactive, ref, watch, computed } from 'vue';
+import { useAuthStore } from '@/stores/auth';
 
+const authStore = useAuthStore();
 const props = defineProps({
   initialData: {
     type: Object,
     default: null
-  }
+  },
+  teamList: { type: Array, required: true }
 });
   
+const daftarTim = computed(() => {
+  if (!props.teamList) return [];
+  if (!authStore.user?.ketuaTimAktif) return [];
+  return props.teamList.filter(tim => 
+    authStore.user.ketuaTimAktif.some(k => k.id === tim.id)
+  );
+});
+
 const emit = defineEmits(['close', 'submit']);
 
-// State untuk form (struktur sudah benar)
 const form = reactive({
   namaAktivitas: '',
   deskripsi: '',
-  timPenyelenggara: '',
+  teamId: '',
   useDateRange: false,
   useTime: false,
   tanggalMulai: '',
@@ -175,9 +188,8 @@ const hapusDokumen = (index) => {
 
 // Mengisi form saat ada initialData (lebih andal)
 watch(() => props.initialData, (newData) => {
-  // Reset form setiap kali modal dibuka/data berubah
   Object.assign(form, {
-    namaAktivitas: '', deskripsi: '', timPenyelenggara: '', useDateRange: false,
+    namaAktivitas: '', deskripsi: '', teamId: '', useDateRange: false,
     useTime: false, tanggalMulai: '', tanggalSelesai: '', jamMulai: '', jamSelesai: '',
   });
   daftarDokumenWajib.value = [];
@@ -185,7 +197,7 @@ watch(() => props.initialData, (newData) => {
   if (newData) {
     form.namaAktivitas = newData.namaAktivitas || '';
     form.deskripsi = newData.deskripsi || '';
-    form.timPenyelenggara = newData.timPenyelenggara || '';
+    form.teamId = newData.teamId || '';
     
     const isRange = !!newData.tanggalSelesai;
     form.useDateRange = isRange;
@@ -209,7 +221,7 @@ watch(() => form.useDateRange, (isRange) => {
 
 const errors = reactive({
   namaAktivitas: null,
-  timPenyelenggara: null,
+  teamId: null,
   tanggalMulai: null,
   tanggalSelesai: null,
   jamMulai: null,
@@ -222,7 +234,7 @@ const validate = () => {
   console.log(form);
 
   if (!form.namaAktivitas) { errors.namaAktivitas = 'Wajib diisi.'; isValid = false; }
-  if (!form.timPenyelenggara) { errors.timPenyelenggara = 'Wajib dipilih.'; isValid = false; }
+  if (!form.teamId) { errors.teamId = 'Wajib dipilih.'; isValid = false; }
   if (!form.tanggalMulai) { errors.tanggalMulai = 'Wajib diisi.'; isValid = false; }
   
   if (form.useDateRange) {

@@ -49,12 +49,29 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 # ===================================================================
 
 def get_user(db: Session, username: str):
-    """Mencari user berdasarkan username beserta relasinya."""
-    return db.query(models.User).options(
+    """Mencari user berdasarkan username beserta relasinya + status ketua tim valid."""
+    user = db.query(models.User).options(
         joinedload(models.User.sistem_role),
         joinedload(models.User.jabatan),
         joinedload(models.User.teams)
     ).filter(models.User.username == username).first()
+
+    if not user:
+        return None
+
+    # cek apakah user adalah ketua tim aktif
+    now = datetime.now()
+    ketua_tim_aktif = db.query(models.Team).filter(
+        models.Team.ketua_tim_id == user.id,
+        models.Team.valid_from <= now,
+        models.Team.valid_until >= now
+    ).all()
+
+    # tambahkan atribut dinamis ke user
+    setattr(user, "ketua_tim_aktif", ketua_tim_aktif)  # list of Team yg masih valid
+    setattr(user, "is_ketua_tim", len(ketua_tim_aktif) > 0)
+
+    return user
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(database.get_db)):
     """
