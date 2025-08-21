@@ -60,9 +60,7 @@ const selectedTeam = ref('Semua Tim');
 const fetchDashboardData = async () => {
   try {
     const response = await axios.get('http://127.0.0.1:8000/api/aktivitas');
-    // Kita gunakan lagi fungsi konversi yang sudah ada
-    activities.value = convertKeysToCamelCase(response.data);
-    console.log(response.data);
+    activities.value = response.data; // <-- simpan data
   } catch (error) {
     console.error("Gagal mengambil data untuk dashboard:", error);
   }
@@ -72,40 +70,28 @@ onMounted(() => {
   fetchDashboardData();
 });
 
-const snakeToCamel = (str) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
-const convertKeysToCamelCase = (obj) => {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(item => convertKeysToCamelCase(item));
-  const newObj = {};
-  for (let key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      newObj[snakeToCamel(key)] = convertKeysToCamelCase(obj[key]);
-    }
-  }
-  return newObj;
-};
-
 const teamList = computed(() => {
-  const teams = new Set(activities.value.map(a => a.timPenyelenggara));
+  const teams = new Set(
+    activities.value.map(a => a.team?.namaTim || '-') // fallback kalau null
+  );
   return ['Semua Tim', ...teams];
 });
 
 const filteredActivities = computed(() => {
   if (selectedTeam.value === 'Semua Tim') {
-    return activities.value; // Tampilkan semua jika 'Semua Tim' dipilih
+    return activities.value;
   }
-  return activities.value.filter(a => a.timPenyelenggara === selectedTeam.value);
+  return activities.value.filter(a => (a.team?.namaTim || '-') === selectedTeam.value);
 });
 
 const isActivityComplete = (activity) => {
-  if (activity.daftarDokumenWajib.length === 0) return true;
+  if (!activity.daftarDokumenWajib || activity.daftarDokumenWajib.length === 0) return true;
   return activity.daftarDokumenWajib.every(doc => doc.status === 'Selesai');
 };
 
 const completionData = computed(() => {
   let completedCount = 0;
   let inProgressCount = 0;
-  // Gunakan filteredActivities di sini
   filteredActivities.value.forEach(activity => {
     if (isActivityComplete(activity)) completedCount++;
     else inProgressCount++;
@@ -115,10 +101,9 @@ const completionData = computed(() => {
 
 const teamActivityData = computed(() => {
   const teams = {};
-  // Gunakan filteredActivities di sini (jika tidak "Semua Tim")
   const sourceData = selectedTeam.value === 'Semua Tim' ? activities.value : filteredActivities.value;
   sourceData.forEach(activity => {
-    const teamName = activity.timPenyelenggara;
+    const teamName = activity.team?.namaTim || '-';
     if (!teams[teamName]) {
       teams[teamName] = { completed: 0, inProgress: 0 };
     }
@@ -135,16 +120,13 @@ const teamActivityData = computed(() => {
 
 const progressOverTimeData = computed(() => {
   const dates = {};
-
-  // Fungsi untuk mengambil bagian tanggal saja (YYYY-MM-DD)
   const getOnlyDate = (dateString) => dateString ? dateString.split('T')[0] : null;
 
-  // Mengumpulkan data (tidak berubah banyak, hanya normalisasi tanggal)
   filteredActivities.value.forEach(activity => {
     const date = getOnlyDate(activity.dibuatPada);
     if (date) {
-        if (!dates[date]) dates[date] = { activitiesCreated: 0, documentsUploaded: 0 };
-        dates[date].activitiesCreated++;
+      if (!dates[date]) dates[date] = { activitiesCreated: 0, documentsUploaded: 0 };
+      dates[date].activitiesCreated++;
     }
   });
   filteredActivities.value.forEach(activity => {
@@ -152,40 +134,31 @@ const progressOverTimeData = computed(() => {
       if (doc.diunggahPada) {
         const date = getOnlyDate(doc.diunggahPada);
         if (date) {
-            if (!dates[date]) dates[date] = { activitiesCreated: 0, documentsUploaded: 0 };
-            dates[date].documentsUploaded++;
+          if (!dates[date]) dates[date] = { activitiesCreated: 0, documentsUploaded: 0 };
+          dates[date].documentsUploaded++;
         }
       }
     });
   });
 
   const sortedDates = Object.keys(dates).sort();
-  
   const series = [
     { name: 'Aktivitas Dibuat', data: sortedDates.map(date => dates[date].activitiesCreated) },
     { name: 'Dokumen Diunggah', data: sortedDates.map(date => dates[date].documentsUploaded) },
   ];
 
-  // --- PERUBAHAN UTAMA DI SINI ---
-  // Format label tanggal (categories) menjadi DD/MM/YY
-  const formattedCategories = sortedDates.map(dateString => 
-    new Date(dateString).toLocaleDateString('id-ID', {
-      day: '2-digit',
-      month: '2-digit',
-      year: '2-digit'
-    })
+  const formattedCategories = sortedDates.map(dateString =>
+    new Date(dateString).toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: '2-digit' })
   );
-  
+
   return { series, categories: formattedCategories };
 });
 
 const incompleteActivities = computed(() => {
-  // Gunakan filteredActivities di sini
   return filteredActivities.value.filter(activity => !isActivityComplete(activity));
 });
 
 const goToDetail = (id) => {
-  router.push({ name: 'aktivitas-detail', params: { id: id } });
+  router.push({ name: 'aktivitas-detail', params: { id } });
 };
-
 </script>

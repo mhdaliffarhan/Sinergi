@@ -52,7 +52,7 @@
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Buat Aktivitas Baru">
-      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :team-list="teamList" />
+      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :team-list="teamList"  />
     </ModalWrapper>
   </div>
 </template>
@@ -78,28 +78,13 @@ const isLoading = ref(false);
 const searchQuery = ref('');
 let debounceTimer = null;
 
-// --- FUNGSI KONVERSI (tetap sama) ---
-const snakeToCamel = (str) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
-const convertKeysToCamelCase = (obj) => {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(convertKeysToCamelCase);
-  
-  const newObj = {};
-  for (let key in obj) {
-    newObj[snakeToCamel(key)] = convertKeysToCamelCase(obj[key]);
-  }
-  return newObj;
-};
-
 const fetchAktivitas = async (query = '') => {
    isLoading.value = true;
   try {
     const response = await axios.get('http://127.0.0.1:8000/api/aktivitas', {
       params: { q: query }
     });
-    console.log("Data Raw : ", response.data);
     aktivitas.value = response.data;
-    console.log("Data : ", aktivitas.value);
   } catch (error) {
     toast.error("Gagal memuat data aktivitas.");
     console.error("Gagal mengambil data aktivitas:", error);
@@ -110,8 +95,7 @@ const fetchAktivitas = async (query = '') => {
 
 const fetchTeams = async () => {
   try {
-     const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
-     console.log('Data : ', response.data);
+    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
     teamList.value = response.data.map(team => ({
       id: team.id,
       namaTim: team.namaTim 
@@ -152,8 +136,6 @@ const handleActivitySubmit = async (formData) => {
       payload[field] = null;
     }
   });
-
-  console.log('Mengirim data yang sudah dibersihkan:', payload);
   
   try {
     // Kirim 'payload' yang sudah bersih ke backend

@@ -9,7 +9,7 @@
         
         <div class="flex flex-col md:flex-row md:items-start md:justify-between">
           <div class="mb-4 md:mb-0">
-            <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.timPenyelenggara }}</p>
+            <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.team.namaTim}}</p>
             <h1 class="text-3xl font-bold text-orange-600 dark:text-orange-500 mt-1">{{ aktivitas.namaAktivitas }}</h1>
             <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
           </div>
@@ -33,12 +33,12 @@
                         Unduh Semua File     
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="authStore.user?.jabatan?.namaJabatan === 'Ketua Tim'">
+                    <MenuItem v-slot="{ active }" v-if="isKetuaTim(aktivitas.teamId)">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Aktivitas
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="authStore.user?.jabatan?.namaJabatan === 'Ketua Tim'">
+                    <MenuItem v-slot="{ active }" v-if="isKetuaTim(aktivitas.teamId)">
                       <button @click="confirmDeleteActivity" :class="[active ? 'bg-red-100 dark:bg-red-800' : '', 'text-red-700 dark:text-red-300 block w-full text-left px-4 py-2 text-sm']">
                         Hapus Aktivitas
                       </button>
@@ -110,7 +110,7 @@
       @close="closePreviewModal"
     />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
-      <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" />
+      <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList"/>
     </ModalWrapper>
     <ModalWrapper :show="isLinkModalOpen" @close="closeLinkModal" title="Tambah Link Baru">
       <FormTambahLink @close="closeLinkModal" @submit="handleLinkSubmit" />
@@ -148,6 +148,7 @@ const router = useRouter();
 const toast = useToast();
 const aktivitasId = route.params.id;
 const authStore = useAuthStore();
+const user = authStore.user;
 
 const aktivitas = ref(null);
 const isLoading = ref(true);
@@ -169,6 +170,12 @@ const fileInputForChecklist = ref(null);
 const replaceFileInput = ref(null);
 const checklistItemIdToUpload = ref(null);
 const itemToReplace = ref(null);
+const teamList = ref([]);
+
+
+const isKetuaTim = (timId) => {
+  return user?.ketuaTimAktif?.some((tim) => tim.id === timId);
+};
 
 // --- COMPUTED PROPERTIES ---
 const unfulfilledChecklistItems = computed(() => 
@@ -203,34 +210,38 @@ const formattedWaktuPelaksanaan = computed(() => {
   return { tanggal: tanggalTampil, waktu: waktuTampil };
 });
 
-// --- FUNGSI-FUNGSI ---
-const snakeToCamel = (str) => str.replace(/([-_][a-z])/g, (group) => group.toUpperCase().replace('-', '').replace('_', ''));
-const convertKeysToCamelCase = (obj) => {
-  if (obj === null || typeof obj !== 'object') return obj;
-  if (Array.isArray(obj)) return obj.map(item => convertKeysToCamelCase(item));
-  const newObj = {};
-  for (let key in obj) {
-    if (Object.prototype.hasOwnProperty.call(obj, key)) {
-      newObj[snakeToCamel(key)] = convertKeysToCamelCase(obj[key]);
-    }
-  }
-  return newObj;
-};
-
 const fetchDetailAktivitas = async () => {
   isLoading.value = true;
   try {
     const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
-    aktivitas.value = convertKeysToCamelCase(response.data);
-    breadcrumbItems.value[2].text = aktivitas.value.namaAktivitas; // Perbaikan: index ke-2
+    aktivitas.value = response.data;
+    breadcrumbItems.value[2].text = aktivitas.value?.namaAktivitas ?? 'Detail Aktivitas';
   } catch (error) {
-    toast.error("Gagal memuat detail aktivitas.");
-    console.error(error);
+    const message = error.response?.data?.message || "Gagal memuat detail aktivitas.";
+    toast.error(message);
+    console.error("Fetch detail aktivitas error:", error);
   } finally {
     isLoading.value = false;
   }
 };
-onMounted(() => { fetchDetailAktivitas(); });
+
+const fetchTeams = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+    teamList.value = response.data.map(team => ({
+      id: team.id,
+      namaTim: team.namaTim 
+    }));
+  } catch (error) {
+    toast.error("Gagal memuat daftar tim.");
+    console.error("Gagal mengambil data tim:", error);
+  }
+};
+
+onMounted(() => { 
+  fetchDetailAktivitas(); 
+  fetchTeams();
+});
 
 // --- Logika untuk Aktivitas (Edit/Hapus) ---
 const openEditModal = () => { isEditModalOpen.value = true; };

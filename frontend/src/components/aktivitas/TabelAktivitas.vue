@@ -6,8 +6,8 @@
           <th scope="col" class="px-6 py-3">
             Nama Aktivitas
           </th>
-          <th scope="col" class="px-6 py-3">
-            Tim Penyelenggara
+          <th scope="col" class="px-6 py-3 text-center">
+            Tim
           </th>
           <th scope="col" class="px-6 py-3">
             Jadwal Pelaksanaan
@@ -23,12 +23,12 @@
           <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
             {{ item.namaAktivitas }}
           </th>
-          <td class="px-6 py-4">
-            <span class="px-3 py-1 text-xs font-medium rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+          <td class="px-6 py-4 text-center">
+            <span class="px-3 py-1 text-xs font-medium  rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
               {{ item.team?.namaTim || '-' }}
             </span>
           </td>
-          <td class="px-6 py-4">
+          <td class="px-6 py-4 text-center">
             <div class="flex flex-col">
               <span class="flex items-center gap-2">
                 <span>🗓️</span>

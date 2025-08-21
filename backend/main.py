@@ -302,7 +302,7 @@ def get_semua_aktivitas(
             or_(
                 models.Aktivitas.nama_aktivitas.ilike(search_term),
                 models.Aktivitas.deskripsi.ilike(search_term),
-                models.Aktivitas.tim_penyelenggara.ilike(search_term),
+                models.Aktivitas.team.has(models.Team.nama_tim.ilike(search_term)),
                 models.Dokumen.keterangan.ilike(search_term),
                 models.Dokumen.nama_file_asli.ilike(search_term)
             )

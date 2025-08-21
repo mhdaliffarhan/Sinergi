@@ -2,6 +2,9 @@ import { ref, computed } from 'vue';
 import { defineStore } from 'pinia';
 import axios from 'axios';
 import router from '@/router';
+import { useToast } from 'vue-toastification';
+
+const toast = useToast();
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token'));
@@ -69,6 +72,7 @@ export const useAuthStore = defineStore('auth', () => {
   function logout() {
     removeToken();
     router.push('/login');
+    toast.success('Anda berhasil Logout!');
   }
 
   return { token, user, isAuthenticated, userRole, isAdmin, login, fetchUser, logout };

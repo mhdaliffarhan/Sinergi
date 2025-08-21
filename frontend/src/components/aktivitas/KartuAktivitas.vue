@@ -14,19 +14,22 @@
       </div>
       <div class="flex items-center gap-1">
         <span>👥</span>
-        <span>{{ timPenyelenggara }}</span>
+        <span>{{ team?.namaTim }}</span>
       </div>
     </div>
   </router-link>
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed} from 'vue';
 
 const props = defineProps({
   id: { type: Number, required: true },
   namaAktivitas: { type: String, required: true },
-  timPenyelenggara: { type: String },
+  team: {
+    type: Object, 
+    required: true, 
+  },
   tanggalMulai: { type: String },
   tanggalSelesai: { type: String },
   jamMulai: { type: String },
