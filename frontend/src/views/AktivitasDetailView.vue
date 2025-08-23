@@ -404,7 +404,6 @@ const handlePreviewRequest = async (dokumen) => {
     const blob = new Blob([response.data], { type: response.headers['content-type'] });
     const url = window.URL.createObjectURL(blob);
     
-    // Simpan data file ke state
     fileToPreview.value = {
       url: url,
       name: dokumen.namaFileAsli,

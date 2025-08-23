@@ -29,10 +29,13 @@ app.add_middleware(
 )
 
 UPLOAD_DIRECTORY = "./uploads"
+UPLOAD_PROFILE_PIC_DIR = "./profile-picture"
 if not os.path.exists(UPLOAD_DIRECTORY):
     os.makedirs(UPLOAD_DIRECTORY)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
-
+if not os.path.exists(UPLOAD_PROFILE_PIC_DIR):
+    os.makedirs(UPLOAD_PROFILE_PIC_DIR)
+app.mount("/profile-picture", StaticFiles(directory="profile-picture"), name="profile-picture")
 
 # ===================================================================
 # ENDPOINT OTENTIKASI & PENGGUNA
@@ -50,6 +53,48 @@ def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db:
 @app.get("/users/me", response_model=schemas.UserWithTeams, response_model_by_alias=True)
 def read_users_me(current_user: models.User = Depends(security.get_current_user)):
     return current_user
+
+@app.post("/api/{user_id}/upload-photo")
+def upload_profile_photo(user_id: int, file: UploadFile = File(...), db: Session = Depends(database.get_db)):
+    # cek ekstensi file
+    if not file.filename.lower().endswith((".png", ".jpg", ".jpeg")):
+        raise HTTPException(status_code=400, detail="Format foto tidak valid. Gunakan JPG/PNG")
+
+    # buat folder kalau belum ada
+    os.makedirs(UPLOAD_PROFILE_PIC_DIR, exist_ok=True)
+
+    # simpan file
+    file_path = f"{UPLOAD_PROFILE_PIC_DIR}/{user_id}_{file.filename}"
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # update DB
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+
+    user.foto_profil_url = file_path
+    db.commit()
+    db.refresh(user)
+
+    return {"message": "Foto profil berhasil diunggah", "foto_profil_url": user.foto_profil_url}
+
+@app.delete("/api/{user_id}/delete-photo")
+def delete_profile_photo(user_id: int, db: Session = Depends(database.get_db)):
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User tidak ditemukan")
+
+    if user.foto_profil_url:
+        file_path = user.foto_profil_url.lstrip("/")
+        if os.path.exists(file_path):
+            os.remove(file_path)
+
+        user.foto_profil_url = None
+        db.commit()
+        db.refresh(user)
+
+    return {"message": "Foto profil berhasil dihapus"}
 
 # ===================================================================
 # ENDPOINT MANAJEMEN ADMIN
@@ -337,7 +382,7 @@ def create_aktivitas(
     else:
         db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
         db_aktivitas.tanggal_selesai = None
-
+    
     # Tambahkan daftar dokumen wajib
     for nama_dok in aktivitas.daftar_dokumen_wajib:
         if nama_dok:

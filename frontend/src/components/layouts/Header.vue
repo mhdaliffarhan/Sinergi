@@ -44,7 +44,11 @@
 
         <Menu as="div" class="relative">
           <MenuButton class="flex items-center">
-            <img class="h-9 w-9 rounded-full object-cover" src="/profile-default.png" alt="User profile photo" />
+            <img
+              class="h-9 w-9 rounded-full object-cover"
+              :src="getProfileUrl(authStore.user?.fotoProfilUrl)"
+              alt="User profile photo"
+            />
           </MenuButton>
           <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
             <MenuItems class="absolute right-0 mt-2 w-48 origin-top-right divide-y divide-gray-100 dark:divide-gray-600 rounded-md bg-white dark:bg-gray-800 shadow-lg broder border-gray-200 dark:border-gray-700 focus:outline-none">
@@ -56,7 +60,13 @@
               </div>
               <div class="px-1 py-1">
                 <MenuItem v-slot="{ active }">
-                  <button :class="[active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-200', 'group flex w-full items-center rounded-md px-2 py-2 text-sm']">Profil</button>
+                  <router-link 
+                    to="/profil" 
+                    :class="[active ? 'bg-blue-500 text-white' : 'text-gray-900 dark:text-gray-200', 'group flex w-full items-center rounded-md px-2 py-2 text-sm']"
+                    class="w-full text-left"
+                  >
+                    Profil
+                  </router-link>
                 </MenuItem>
               </div>
               <div class="px-1 py-1">
@@ -130,4 +140,12 @@ onMounted(() => {
     }
   });
 });
+
+const getProfileUrl = (path) => {
+  if (!path) return "/profile-default.png";
+  if (path.startsWith("./")) {
+    return `http://127.0.0.1:8000/${path.replace("./", "")}`;
+  }
+  return path;
+};
 </script>

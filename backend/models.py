@@ -57,6 +57,7 @@ class User(Base):
     is_active = Column(Boolean, default=True)
     sistem_role_id = Column(Integer, ForeignKey("sistem_roles.id"))
     jabatan_id = Column(Integer, ForeignKey("jabatan.id"))
+    foto_profil_url = Column(String, nullable=True)
     sistem_role = relationship("SistemRole")
     jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")

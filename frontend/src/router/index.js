@@ -8,6 +8,7 @@ import LoginView from '../views/LoginView.vue'
 import AktivitasDashboardView from '../views/AktivitasDashboardView.vue'
 import AktivitasDaftarView from '../views/AktivitasDaftarView.vue'
 import AboutView from '@/views/AboutView.vue'
+import ProfileView from '@/views/ProfileView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -21,6 +22,12 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView
+    },
+    {
+      path: '/profil',
+      name: 'profil',
+      component: ProfileView,
+      meta: { requiresAuth: true }
     },
     {
       path: '/dashboard',
@@ -88,7 +95,7 @@ router.beforeEach(async (to, from, next) => {
       return next({ name: 'dashboard' });
     }
   }
-  
+
   next();
 });
 

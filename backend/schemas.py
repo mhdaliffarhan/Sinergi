@@ -64,6 +64,7 @@ class Team(TeamBase):
 class UserBase(CamelModel):
     username: str
     nama_lengkap: Optional[str] = None
+    foto_profil_url : Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
