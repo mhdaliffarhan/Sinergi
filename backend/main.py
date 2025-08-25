@@ -326,7 +326,7 @@ def get_all_jabatan(db: Session = Depends(database.get_db)):
 
 # Hapus response_model_by_alias karena kita sudah menangani alias di skema
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
-def get_semua_aktivitas(
+def get_all_aktivitas(
         db: Session = Depends(database.get_db), 
         q: Optional[str] = None,
         current_user: models.User = Depends(security.get_current_user)

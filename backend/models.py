@@ -10,15 +10,14 @@ user_team_link = Table('user_team_link', Base.metadata,
 class Aktivitas(Base):
     __tablename__ = "aktivitas"
     id = Column(Integer, primary_key=True, index=True)
-    nama_aktivitas = Column(String, index=True)
+    nama_aktivitas = Column(String, index=True, nullable=False)
     deskripsi = Column(Text, nullable=True)
-    tim_penyelenggara = Column(String, index=True)
-    tanggal_mulai = Column(TIMESTAMP, nullable=True)
-    tanggal_selesai = Column(TIMESTAMP, nullable=True)
+    tanggal_mulai = Column(DATE, nullable=True)
+    tanggal_selesai = Column(DATE, nullable=True) 
     jam_mulai = Column(Time, nullable=True)
     jam_selesai = Column(Time, nullable=True)
     dibuat_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
-    creator_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    creator_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
 
     creator = relationship("User", back_populates="created_aktivitas")
@@ -35,7 +34,7 @@ class Dokumen(Base):
     nama_file_asli = Column(String, nullable=True)
     tipe_file_mime = Column(String, nullable=True)
     diunggah_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
-    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
+    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"), nullable=False) 
     aktivitas = relationship("Aktivitas", back_populates="dokumen")
 
 class DaftarDokumen(Base):
@@ -44,20 +43,20 @@ class DaftarDokumen(Base):
     nama_dokumen = Column(String, nullable=False)
     status = Column(String(50), nullable=False, default='Wajib Diunggah')
     dokumen_id = Column(Integer, ForeignKey("dokumen.id"), nullable=True)
-    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"))
+    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"), nullable=False)
     aktivitas = relationship("Aktivitas", back_populates="daftar_dokumen_wajib")
     dokumen_terkait = relationship("Dokumen")
 
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
+    username = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
     nama_lengkap = Column(String)
     is_active = Column(Boolean, default=True)
     sistem_role_id = Column(Integer, ForeignKey("sistem_roles.id"))
     jabatan_id = Column(Integer, ForeignKey("jabatan.id"))
-    foto_profil_url = Column(String, nullable=True)
+    foto_profil_url = Column(Text, nullable=True) 
     sistem_role = relationship("SistemRole")
     jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")
@@ -66,7 +65,7 @@ class User(Base):
 class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
-    nama_tim = Column(String, unique=False, index=True)
+    nama_tim = Column(String, unique=False, nullable=False)
     valid_from = Column(DATE, nullable=True)
     valid_until = Column(DATE, nullable=True)
     ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
