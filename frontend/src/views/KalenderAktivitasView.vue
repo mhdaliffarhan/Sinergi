@@ -67,8 +67,9 @@
               :key="team.id"
               @click="toggleTeam(team)"
               class="px-3 py-1.5 text-sm font-medium rounded-lg transition-colors duration-200"
+              :style="isTeamSelected(team) ? { backgroundColor: team.warna, color: 'white' } : {}"
               :class="{
-                'bg-blue-600 text-white shadow': isTeamSelected(team),
+                'shadow': isTeamSelected(team),
                 'bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-500': !isTeamSelected(team)
               }"
             >
@@ -150,7 +151,6 @@ const filteredActivities = computed(() => {
   return data;
 });
 
-// 🟢 FUNGSI BARU UNTUK FILTER TIM 🟢
 const selectAllTeams = () => {
   selectedTeams.value = [];
 };
@@ -185,6 +185,9 @@ const calendarEvents = computed(() =>
       title: a.namaAktivitas,
       start: a.tanggalMulai,
       end: endDate,
+       backgroundColor: a.team?.warna || '#2563eb',
+      borderColor: a.team?.warna || '#2563eb',
+      textColor: '#fff'
     };
   })
 );
@@ -211,7 +214,8 @@ const timelineEvents = computed(() =>
     date: a.tanggalSelesai ? `${a.tanggalMulai} s.d. ${a.tanggalSelesai}` : a.tanggalMulai,
     status: a.daftarDokumenWajib?.some(d => d.status === "Wajib Diunggah")
       ? "Belum Lengkap"
-      : "Lengkap"
+      : "Lengkap",
+    team: a.team 
   }))
 );
 </script>

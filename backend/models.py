@@ -72,6 +72,7 @@ class Team(Base):
     ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
     users = relationship("User", secondary=user_team_link, back_populates="teams")
     aktivitas = relationship("Aktivitas", back_populates="team")
+    warna = Column(String(7), nullable=True, default="#3b82f6")
 
 class SistemRole(Base):
     __tablename__ = "sistem_roles"

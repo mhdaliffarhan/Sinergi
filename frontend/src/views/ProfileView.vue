@@ -9,9 +9,6 @@
         <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
           Profil Saya
         </h1>
-        <p class="text-gray-500 dark:text-gray-400 text-center text-sm sm:text-base">
-          Kelola informasi akun dan keamanan Anda
-        </p>
       </div>
 
       <!-- Card 1: Informasi Akun -->
@@ -55,7 +52,7 @@
               v-model="form.oldPassword" 
               type="password"
               required
-              class="mt-1 block w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <div>
@@ -64,7 +61,7 @@
               v-model="form.newPassword" 
               type="password"
               required
-              class="mt-1 block w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <div>
@@ -73,7 +70,7 @@
               v-model="form.confirmPassword" 
               type="password"
               required
-              class="mt-1 block w-full rounded-xl border-gray-300 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
+              class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
             />
           </div>
           <button 
@@ -92,8 +89,10 @@ import { ref, onMounted } from "vue";
 import axios from "axios";
 import ProfilePicture from "@/components/profile/ProfilePicture.vue";
 import { useAuthStore } from '@/stores/auth';
+import { useToast } from 'vue-toastification';
 
 const authStore = useAuthStore();
+const toast = useToast();
 const user = ref({
   id: null,
   username: "",
@@ -109,21 +108,33 @@ const form = ref({
   confirmPassword: ""
 });
 
+onMounted ( ()=> {
+  console.log("testing : ",authStore.user.id);
+})
 const updatePassword = async () => {
   if (form.value.newPassword !== form.value.confirmPassword) {
-    alert("Password baru dan konfirmasi tidak cocok");
+    toast.error("Password baru dan konfirmasi tidak cocok.");
+    return;
+  }
+  if (form.value.newPassword.length < 8) {
+    toast.error("Password baru harus minimal 8 karakter.");
+    return;
+  }
+  const hasLetter = /[a-zA-Z]/.test(form.value.newPassword);
+  const hasNumber = /[0-9]/.test(form.value.newPassword);
+  if (!hasLetter || !hasNumber) {
+    toast.error("Password baru harus mengandung huruf dan angka.");
     return;
   }
   try {
-    await axios.put(`http://127.0.0.1:8000/api/users/${user.value.id}/password`, {
+    await axios.put(`http://127.0.0.1:8000/api/users/${authStore.user.id}/password`, {
       oldPassword: form.value.oldPassword,
       newPassword: form.value.newPassword
     });
-    alert("Password berhasil diperbarui");
+    toast.success("Password berhasil diperbarui");
     form.value = { oldPassword: "", newPassword: "", confirmPassword: "" };
   } catch (err) {
-    alert("Gagal memperbarui password");
-    console.error(err);
+    toast.error(err?.response?.data?.detail || "Terjadi kesalahan");
   }
 };
 

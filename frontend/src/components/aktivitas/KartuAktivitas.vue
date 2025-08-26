@@ -13,8 +13,10 @@
         <span>{{ formattedTanggal }}</span>
       </div>
       <div class="flex items-center gap-1">
-        <span>👥</span>
-        <span>{{ team?.namaTim }}</span>
+        <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full text-white"
+              :style="{ backgroundColor: team.warna || '#3b82f6' }">
+              👥 {{ team?.namaTim || '-' }}
+        </span>
       </div>
     </div>
   </router-link>

@@ -52,6 +52,24 @@
         </div>
       </div>
 
+      <!-- Warna Tim -->
+      <div>
+        <label for="warna" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Warna Tim
+        </label>
+        <div class="flex items-center gap-3 mt-1">
+          <input 
+            id="warna"
+            type="color"
+            v-model="form.warna"
+            class="w-12 h-10 cursor-pointer border border-gray-300 dark:border-gray-600 rounded"
+          />
+          <span class="text-sm text-gray-600 dark:text-gray-300">
+            {{ form.warna }}
+          </span>
+        </div>
+      </div>
+
     </div>
 
     <div class="mt-6 flex justify-end gap-3">
@@ -79,7 +97,8 @@ const form = reactive({
   namaTim: '',
   validFrom: null,
   validUntil: null,
-  ketuaTimId: null, // State baru untuk menyimpan ID ketua tim
+  ketuaTimId: null,
+  warna: '#3b82f6'
 });
 
 const errors = reactive({
@@ -90,7 +109,11 @@ const errors = reactive({
 watchEffect(() => {
   // Reset form
   Object.assign(form, {
-    namaTim: '', validFrom: null, validUntil: null, ketuaTimId: null
+    namaTim: '', 
+    validFrom: null, 
+    validUntil: null, 
+    ketuaTimId: null,
+    warna: '#3b82f6'
   });
   Object.keys(errors).forEach(key => errors[key] = null);
 
@@ -98,7 +121,8 @@ watchEffect(() => {
     form.namaTim = props.initialData.namaTim || '';
     form.validFrom = props.initialData.validFrom?.split('T')[0] || null;
     form.validUntil = props.initialData.validUntil?.split('T')[0] || null;
-    form.ketuaTimId = props.initialData.ketuaTim?.id || null; // Isi ID ketua tim saat edit
+    form.ketuaTimId = props.initialData.ketuaTim?.id || null; 
+    form.warna = props.initialData.warna || '#3b82f6';
   }
 });
 

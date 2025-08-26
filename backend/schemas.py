@@ -1,4 +1,4 @@
-from pydantic import BaseModel, model_validator, Field, ConfigDict
+from pydantic import BaseModel, model_validator, field_validator, Field, ConfigDict
 from typing import Optional, Any, List
 from datetime import date, time, datetime
 
@@ -34,7 +34,7 @@ class TeamInUser(CamelModel):
     nama_tim: str
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
-
+    
 class UserInTeam(CamelModel):
     id: int
     username: str
@@ -45,6 +45,7 @@ class TeamBase(CamelModel):
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
     ketua_tim_id: Optional[int] = None
+    warna: Optional[str] = None
 
 class TeamCreate(TeamBase):
     pass
@@ -71,6 +72,17 @@ class UserCreate(UserBase):
     sistem_role_id: int
     jabatan_id: int
 
+    @model_validator(mode="after")
+    def validate_password_strength(self):
+        password = self.password
+        if len(password) < 8:
+            raise ValueError("Password harus minimal 8 karakter")
+        if not any(c.isalpha() for c in password):
+            raise ValueError("Password harus mengandung huruf")
+        if not any(c.isdigit() for c in password):
+            raise ValueError("Password harus mengandung angka")
+        return self
+
 class UserWithTeams(UserBase):
     id: int
     is_active: bool
@@ -92,6 +104,24 @@ class User(UserBase):
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
     teams: List[TeamInUser] = []
+
+class PasswordUpdate(CamelModel):
+    old_password: str
+    new_password: str
+
+    @model_validator(mode="after")
+    def validate_password_change(self):
+        if self.old_password == self.new_password:
+            raise ValueError("Password baru tidak boleh sama dengan password lama")
+
+        if len(self.new_password) < 8:
+            raise ValueError("Password baru harus minimal 8 karakter")
+        if not any(c.isalpha() for c in self.new_password):
+            raise ValueError("Password baru harus mengandung huruf")
+        if not any(c.isdigit() for c in self.new_password):
+            raise ValueError("Password baru harus mengandung angka")
+
+        return self
 
 class UserPage(CamelModel):
     total: int

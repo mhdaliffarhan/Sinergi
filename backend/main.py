@@ -96,6 +96,35 @@ def delete_profile_photo(user_id: int, db: Session = Depends(database.get_db)):
 
     return {"message": "Foto profil berhasil dihapus"}
 
+@app.put("/api/users/{user_id}/password")
+def update_password(
+    user_id: int,
+    password_data: schemas.PasswordUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    # Pastikan user hanya bisa ganti password dirinya sendiri
+    if current_user.id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Tidak diizinkan mengganti password user lain"
+        )
+
+    user = db.query(models.User).filter(models.User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User tidak ditemukan")
+
+    # Verifikasi password lama
+    if not security.verify_password(password_data.old_password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password lama salah")
+
+    # Update password baru
+    hashed_new_password = security.get_password_hash(password_data.new_password)
+    user.hashed_password = hashed_new_password
+    db.commit()
+
+    return {"message": "Password berhasil diperbarui"}
+
 # ===================================================================
 # ENDPOINT MANAJEMEN ADMIN
 # ===================================================================
@@ -193,7 +222,7 @@ def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)
     db.refresh(db_team)
     return db_team
 
-@app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+@app.get("/api/teams", response_model=schemas.TeamPage, response_model_by_alias=True)
 def get_all_teams(
     db: Session = Depends(database.get_db),
     skip: int = 0, 

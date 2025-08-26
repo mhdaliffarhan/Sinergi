@@ -24,7 +24,8 @@
             {{ item.namaAktivitas }}
           </th>
           <td class="px-6 py-4 text-center">
-            <span class="px-3 py-1 text-xs font-medium  rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full text-white"
+              :style="{ backgroundColor: item.team.warna || '#3b82f6' }">
               {{ item.team?.namaTim || '-' }}
             </span>
           </td>
