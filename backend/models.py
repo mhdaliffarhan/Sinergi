@@ -41,7 +41,7 @@ class DaftarDokumen(Base):
     __tablename__ = "daftar_dokumen"
     id = Column(Integer, primary_key=True, index=True)
     nama_dokumen = Column(String, nullable=False)
-    status = Column(String(50), nullable=False, default='Wajib Diunggah')
+    status_pengecekan = Column(Boolean, default=False, nullable=False)
     dokumen_id = Column(Integer, ForeignKey("dokumen.id"), nullable=True)
     aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"), nullable=False)
     aktivitas = relationship("Aktivitas", back_populates="daftar_dokumen_wajib")

@@ -353,7 +353,6 @@ def get_all_jabatan(db: Session = Depends(database.get_db)):
     # Konversi manual
     return [schemas.Jabatan.from_orm(j) for j in jabatan_db]
 
-# Hapus response_model_by_alias karena kita sudah menangani alias di skema
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
 def get_all_aktivitas(
         db: Session = Depends(database.get_db), 
@@ -415,7 +414,10 @@ def create_aktivitas(
     # Tambahkan daftar dokumen wajib
     for nama_dok in aktivitas.daftar_dokumen_wajib:
         if nama_dok:
-            db_daftar_dokumen = models.DaftarDokumen(nama_dokumen=nama_dok)
+            db_daftar_dokumen = models.DaftarDokumen(
+                nama_dokumen=nama_dok,
+                status_pengecekan=False
+                )
             db_aktivitas.daftar_dokumen_wajib.append(db_daftar_dokumen)
 
     db.add(db_aktivitas)
@@ -672,6 +674,52 @@ def delete_dokumen(dokumen_id: int, db: Session = Depends(database.get_db)):
     
     # 4. Kembalikan respons tanpa konten
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+# ENDPOINT UNTUK MANAJEMEN CHECKLIST DOKUMEN
+@app.patch("/api/daftar_dokumen/{item_id}/cek", response_model=schemas.DaftarDokumen, response_model_by_alias=True)
+def update_status_pengecekan(
+    item_id: int,
+    status_update: schemas.StatusPengecekanUpdate,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    """
+    Memperbarui status pengecekan (true/false) untuk sebuah item di daftar dokumen.
+    Hanya bisa dilakukan oleh ketua tim dari aktivitas terkait.
+    """
+    # 1. Cari item checklist di database, lakukan join untuk mengambil data tim terkait
+    db_item = db.query(models.DaftarDokumen).options(
+        joinedload(models.DaftarDokumen.aktivitas).joinedload(models.Aktivitas.team)
+    ).filter(models.DaftarDokumen.id == item_id).first()
+
+    if not db_item:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Item checklist tidak ditemukan"
+        )
+
+    # 2. Validasi Keamanan: Pastikan pengguna adalah ketua tim
+    # Pastikan ada aktivitas dan tim yang tertaut sebelum memeriksa
+    if not db_item.aktivitas or not db_item.aktivitas.team:
+         raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, 
+            detail="Item checklist tidak terhubung dengan tim yang valid"
+        )
+
+    team_lead_id = db_item.aktivitas.team.ketua_tim_id
+    if current_user.id != team_lead_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya ketua tim yang dapat mengubah status pengecekan"
+        )
+
+    # 3. Jika validasi berhasil, perbarui status
+    db_item.status_pengecekan = status_update.status_pengecekan
+    db.commit()
+    db.refresh(db_item)
+    
+    # 4. Kembalikan data yang sudah diperbarui
+    return db_item
 
 # --- ENDPOINT BARU UNTUK UNDUH/PREVIEW DOKUMEN ---
 @app.get("/api/dokumen/{dokumen_id}/download")

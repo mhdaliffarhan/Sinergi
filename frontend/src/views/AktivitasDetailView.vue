@@ -68,13 +68,14 @@
           <input type="file" ref="replaceFileInput" @change="handleReplaceFileSelected" class="hidden">
           <div v-if="aktivitas.daftarDokumenWajib && aktivitas.daftarDokumenWajib.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <ChecklistItem
-              v-for="item in aktivitas.daftarDokumenWajib"
-              :key="item.id"
-              :item="item"
-              @unggah="handleUploadRequest"
-              @ganti="handleGantiRequest"
-              @hapus="confirmDeleteDokumen"
-              @preview="handlePreviewRequest"
+              v-for="doc in aktivitas.daftarDokumenWajib"
+                :key="doc.id"
+                :item="doc"
+                :isKetuaTim="isKetuaTim"
+                @unggah="handleUploadRequest"
+                @hapus="confirmDeleteDokumen"
+                @preview="handlePreviewRequest"
+                @cek="handleCheckDoc"
             />
           </div>
           <div v-else>
@@ -173,14 +174,17 @@ const itemToReplace = ref(null);
 const teamList = ref([]);
 
 
-const isKetuaTim = (timId) => {
-  return user?.ketuaTimAktif?.some((tim) => tim.id === timId);
-};
+const isKetuaTim = computed(() => {
+  const team = aktivitas.value?.team
+  if (!team) return false
+  return team.ketuaTimId === user?.id
+})
 
 // --- COMPUTED PROPERTIES ---
-const unfulfilledChecklistItems = computed(() => 
-  aktivitas.value?.daftarDokumenWajib?.filter(item => item.status !== 'Selesai') || []
+const unfulfilledChecklistItems = computed(() =>
+  aktivitas.value?.daftarDokumenWajib?.filter(item => item.dokumenId == null) || []
 );
+
 const otherDocuments = computed(() => {
   if (!aktivitas.value?.dokumen) return [];
   const checklistDocIds = new Set(aktivitas.value.daftarDokumenWajib.map(item => item.dokumenId).filter(id => id != null));
@@ -439,8 +443,6 @@ const handleDownloadAll = async () => {
         responseType: 'blob',
         timeout: 60000,
       });
-
-      // ... (sisa logika unduh tidak berubah)
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement('a');
       link.href = url;
@@ -468,6 +470,23 @@ const handleDownloadAll = async () => {
       console.error("Gagal mengunduh semua file:", error);
       toast.error(error.response?.data?.detail || "Gagal mengunduh file ZIP.");
     }
+  }
+};
+
+const handleCheckDoc = async ({ id, value }) => {
+  try {
+    const { data } = await axios.patch(`http://127.0.0.1:8000/api/daftar_dokumen/${id}/cek`, {
+      statusPengecekan: value
+    })
+
+    // update lokal state biar realtime
+    const target = aktivitas.value.daftarDokumenWajib.find(d => d.id === id)
+    if (target) target.statusPengecekan = data.statusPengecekan
+
+    toast.success(value ? 'Ditandai sudah dicek' : 'Tanda cek dibatalkan')
+  } catch (err) {
+    console.error(err)
+    toast.error(err?.response?.data?.detail || 'Gagal memperbarui status pengecekan')
   }
 };
 </script>

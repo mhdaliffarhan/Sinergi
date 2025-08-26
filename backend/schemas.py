@@ -144,13 +144,12 @@ class Dokumen(CamelModel):
     nama_file_asli: Optional[str] = None
     diunggah_pada: datetime
 
-
 class DaftarDokumen(CamelModel):
     id: int
     nama_dokumen: str
-    status: str
     dokumen_id: Optional[int] = None
     dokumen_terkait: Optional[Dokumen] = None
+    status_pengecekan: bool
 
 class AktivitasBase(CamelModel):
     nama_aktivitas: str
@@ -164,6 +163,9 @@ class AktivitasBase(CamelModel):
     team_id: Optional[int] = None
     creator_user_id: Optional[int] = None
 
+class StatusPengecekanUpdate(CamelModel):
+    status_pengecekan: bool
+    
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
     @model_validator(mode='before')
