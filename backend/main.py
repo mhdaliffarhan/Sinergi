@@ -657,19 +657,15 @@ def delete_dokumen(dokumen_id: int, db: Session = Depends(database.get_db)):
     
     # 3. Jika ada, reset status dan tautannya
     if db_checklist_item:
-        db_checklist_item.status = 'Wajib Diunggah'
+        db_checklist_item.status_pengecekan = False 
         db_checklist_item.dokumen_id = None
         
-    # 4. Hapus file fisik dari folder 'uploads' jika tipenya 'FILE'
     if db_dokumen.tipe == 'FILE':
         file_path = db_dokumen.path_atau_url
         if os.path.exists(file_path):
             os.remove(file_path)
             
-    # 5. Hapus data dari tabel 'dokumen'
     db.delete(db_dokumen)
-    
-    # 6. Simpan semua perubahan (update checklist dan delete dokumen)
     db.commit()
     
     # 4. Kembalikan respons tanpa konten

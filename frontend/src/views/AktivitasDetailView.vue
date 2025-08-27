@@ -1,21 +1,23 @@
 <template>
   <div>
     <Breadcrumbs :items="breadcrumbItems" />
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md">
+    <div class="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-lg shadow-md">
       <div v-if="isLoading">
         <p class="text-center text-gray-500 dark:text-gray-400">Memuat data aktivitas...</p>
       </div>
       <div v-else-if="aktivitas">
         
-        <div class="flex flex-col md:flex-row md:items-start md:justify-between">
-          <div class="mb-4 md:mb-0">
+        <!-- RESPONSIVE: Header diubah menjadi kolom di layar kecil (flex-col) -->
+        <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+          <div class="md:mb-0">
             <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.team.namaTim}}</p>
-            <h1 class="text-3xl font-bold text-orange-600 dark:text-orange-500 mt-1">{{ aktivitas.namaAktivitas }}</h1>
+            <h1 class="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-500 mt-1">{{ aktivitas.namaAktivitas }}</h1>
             <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
           </div>
           
+          <!-- RESPONSIVE: Tombol tindakan dibuat lebar penuh di layar kecil/medium -->
           <div class="flex-shrink-0 w-full md:w-auto">
-            <Menu as="div" class="relative inline-block text-left">
+            <Menu as="div" class="relative inline-block text-left w-full md:w-auto">
               <div>
                 <MenuButton class="inline-flex w-full justify-center gap-x-1.5 rounded-md bg-white dark:bg-gray-700 px-4 py-2 text-sm font-semibold text-gray-900 dark:text-gray-200 shadow-sm ring-1 ring-inset ring-gray-300 dark:ring-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
                   Tindakan
@@ -26,19 +28,20 @@
               </div>
 
               <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-                <MenuItems class="absolute left-0 md:left-auto md:right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg  dark:ring-gray-600 ring-opacity-5 focus:outline-none">
+                <!-- RESPONSIVE: Posisi menu disesuaikan agar tidak keluar layar di mobile -->
+                <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-gray-600 focus:outline-none">
                   <div class="py-1"> 
                     <MenuItem v-slot="{ active }">
                       <button @click="handleDownloadAll" :class="[active ? 'bg-green-100 dark:bg-green-700' : '', 'text-green-700 dark:text-green-200 block w-full text-left px-4 py-2 text-sm']">
-                        Unduh Semua File     
+                        Unduh Semua File    
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="isKetuaTim(aktivitas.teamId)">
+                    <MenuItem v-slot="{ active }" v-if="isKetuaTim">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Aktivitas
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="isKetuaTim(aktivitas.teamId)">
+                    <MenuItem v-slot="{ active }" v-if="isKetuaTim">
                       <button @click="confirmDeleteActivity" :class="[active ? 'bg-red-100 dark:bg-red-800' : '', 'text-red-700 dark:text-red-300 block w-full text-left px-4 py-2 text-sm']">
                         Hapus Aktivitas
                       </button>
@@ -79,14 +82,15 @@
             />
           </div>
           <div v-else>
-            <p class="text-sm text-center text-gray-500 dark:text-gray-400">Tidak ada daftar dokumen wajib untuk aktivitas ini.</p>
+            <p class="text-sm text-center text-gray-500 dark:text-gray-400 py-4">Tidak ada daftar dokumen wajib untuk aktivitas ini.</p>
           </div>
         </div>
 
         <div>
-          <div class="flex items-center justify-between mb-4">
+           <!-- RESPONSIVE: Header section diubah menjadi kolom di layar kecil -->
+          <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
-            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 bg-gray-100 dark:bg-gray-700 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600">+ Tambah Link</button>
+            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
           </div>
           <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <DokumenItem 
@@ -94,22 +98,19 @@
               :key="doc.id" 
               :dokumen="doc" 
               @hapus="confirmDeleteDokumen"
-              @preview="handlePreviewRequest" />
+              @preview="handlePreviewRequest" 
+              class="p-3" />
           </div>
-          <DropzoneUploader @file-selected="handleFileReadyForUpload" />
+          <DropzoneUploader @file-selected="handleFileReadyForUpload" class="mt-4" />
         </div>
       </div>
       <div v-else>
         <p class="text-center text-red-500">Gagal memuat data.</p>
       </div>
     </div>
-    <FilePreviewModal
-      :show="isPreviewModalOpen"
-      :file-url="fileToPreview.url"
-      :file-name="fileToPreview.name"
-      :file-type="fileToPreview.type"
-      @close="closePreviewModal"
-    />
+    
+    <!-- MODALS (Tidak perlu diubah) -->
+    <FilePreviewModal :show="isPreviewModalOpen" :file-url="fileToPreview.url" :file-name="fileToPreview.name" :file-type="fileToPreview.type" @close="closePreviewModal" />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
       <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList"/>
     </ModalWrapper>
@@ -219,6 +220,7 @@ const fetchDetailAktivitas = async () => {
   try {
     const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
     aktivitas.value = response.data;
+    console.log("Aktivitas : ", aktivitas.value);
     breadcrumbItems.value[2].text = aktivitas.value?.namaAktivitas ?? 'Detail Aktivitas';
   } catch (error) {
     const message = error.response?.data?.message || "Gagal memuat detail aktivitas.";
@@ -425,16 +427,13 @@ const handlePreviewRequest = async (dokumen) => {
 
 const handleDownloadAll = async () => {
   // --- VALIDASI DI FRONTEND ---
-  // Gunakan computed property 'files' yang sudah kita buat sebelumnya.
   const filesToDownload = files.value;
 
-  // 1. Cek apakah ada file untuk diunduh.
   if (filesToDownload.length === 0) {
     toast.warning("Tidak ada file yang bisa diunduh untuk aktivitas ini.");
-    return; // Hentikan fungsi di sini.
+    return; 
   }
 
-  // 2. Jika ada file, baru tampilkan konfirmasi.
   if (window.confirm(`Apakah Anda yakin ingin mengunduh semua file untuk aktivitas ini?`)) {
     const toastId = toast.info("Sedang mempersiapkan file ZIP, mohon tunggu...", { timeout: false });
     
