@@ -2,6 +2,7 @@ from pydantic import BaseModel, model_validator, field_validator, Field, ConfigD
 from typing import Optional, Any, List
 from datetime import date, time, datetime
 
+# Fungsi untuk konversi nama ke camelCase
 def to_camel(snake_str: str) -> str:
     parts = snake_str.split('_')
     return parts[0] + "".join(word.capitalize() for word in parts[1:])
@@ -11,13 +12,12 @@ class CamelModel(BaseModel):
     model_config = ConfigDict(
         alias_generator=to_camel, 
         populate_by_name=True, 
-        from_attributes=True          
+        from_attributes=True     
     )
 
 # ===================================================================
 # SKEMA UNTUK PERAN & JABATAN
 # ===================================================================
-
 class Jabatan(CamelModel):
     id: int
     nama_jabatan: str
@@ -27,41 +27,57 @@ class SistemRole(CamelModel):
     nama_role: str
 
 # ===================================================================
-# SKEMA UNTUK TEAM
+# SKEMA UNTUK DOKUMEN
 # ===================================================================
+class DokumenBase(CamelModel):
+    keterangan: Optional[str] = None
+    tipe: str
+    path_atau_url: Optional[str] = None
+    nama_file_asli: Optional[str] = None
+    tipe_file_mime: Optional[str] = None
+
+class DokumenCreate(DokumenBase):
+    pass
+
+class Dokumen(DokumenBase):
+    id: int
+    diunggah_pada: datetime
+    aktivitas_id: Optional[int] = None
+    project_id: Optional[int] = None
+
+# ===================================================================
+# SKEMA UNTUK DAFTAR DOKUMEN WAJIB
+# ===================================================================
+class DaftarDokumen(CamelModel):
+    id: int
+    nama_dokumen: str
+    dokumen_id: Optional[int] = None
+    dokumen_terkait: Optional[Dokumen] = None
+    status_pengecekan: bool
+
+# ===================================================================
+# SKEMA UNTUK USER
+# ===================================================================
+class UserInTeam(CamelModel):
+    id: int
+    username: str
+    nama_lengkap: Optional[str] = None
+    
+class UserInProject(CamelModel):
+    id: int
+    username: str
+    nama_lengkap: Optional[str] = None
+    
+class ProjectInUser(CamelModel):
+    id: int
+    nama_project: str
+
 class TeamInUser(CamelModel):
     id: int
     nama_tim: str
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
     
-class UserInTeam(CamelModel):
-    id: int
-    username: str
-    nama_lengkap: Optional[str] = None
-    
-class TeamBase(CamelModel):
-    nama_tim: str
-    valid_from: Optional[date] = None
-    valid_until: Optional[date] = None
-    ketua_tim_id: Optional[int] = None
-    warna: Optional[str] = None
-
-class TeamCreate(TeamBase):
-    pass
-
-class TeamUpdate(TeamBase):
-    pass
-
-class Team(TeamBase):
-    id: int
-    ketua_tim: Optional[UserInTeam] = None
-    users: List[UserInTeam] = []
-
-# ===================================================================
-# SKEMA UNTUK USER
-# ===================================================================
-
 class UserBase(CamelModel):
     username: str
     nama_lengkap: Optional[str] = None
@@ -83,9 +99,12 @@ class UserCreate(UserBase):
             raise ValueError("Password harus mengandung angka")
         return self
     
-class ProjectInUser(CamelModel):
+class User(UserBase):
     id: int
-    nama_project: str
+    is_active: bool
+    sistem_role: SistemRole
+    jabatan: Optional[Jabatan] = None
+    teams: List[TeamInUser] = []
 
 class UserWithTeams(UserBase):
     id: int
@@ -94,7 +113,7 @@ class UserWithTeams(UserBase):
     jabatan: Optional[Jabatan] = None
     teams: List[TeamInUser] = []
     is_ketua_tim: bool = False
-    ketua_tim_aktif: List[Team] = []
+    ketua_tim_aktif: List[Any] = [] # Menggunakan Any untuk menghindari circular reference
     created_projects: List[ProjectInUser] = []
 
 class UserUpdate(CamelModel):
@@ -102,13 +121,6 @@ class UserUpdate(CamelModel):
     sistem_role_id: Optional[int] = None
     jabatan_id: Optional[int] = None
     is_active: Optional[bool] = None
-
-class User(UserBase):
-    id: int
-    is_active: bool
-    sistem_role: SistemRole
-    jabatan: Optional[Jabatan] = None
-    teams: List[TeamInUser] = []
 
 class PasswordUpdate(CamelModel):
     old_password: str
@@ -118,19 +130,42 @@ class PasswordUpdate(CamelModel):
     def validate_password_change(self):
         if self.old_password == self.new_password:
             raise ValueError("Password baru tidak boleh sama dengan password lama")
-
         if len(self.new_password) < 8:
             raise ValueError("Password baru harus minimal 8 karakter")
         if not any(c.isalpha() for c in self.new_password):
             raise ValueError("Password baru harus mengandung huruf")
         if not any(c.isdigit() for c in self.new_password):
             raise ValueError("Password baru harus mengandung angka")
-
         return self
 
 class UserPage(CamelModel):
     total: int
     items: List[User]
+
+# ===================================================================
+# SKEMA UNTUK TEAM
+# ===================================================================
+class TeamInProject(CamelModel):
+    id: int
+    nama_tim: str
+
+class TeamBase(CamelModel):
+    nama_tim: str
+    valid_from: Optional[date] = None
+    valid_until: Optional[date] = None
+    ketua_tim_id: Optional[int] = None
+    warna: Optional[str] = None
+
+class TeamCreate(TeamBase):
+    pass
+
+class TeamUpdate(TeamBase):
+    pass
+
+class Team(TeamBase):
+    id: int
+    ketua_tim: Optional[UserInTeam] = None
+    users: List[UserInTeam] = []
 
 class TeamPage(CamelModel):
     total: int
@@ -139,16 +174,6 @@ class TeamPage(CamelModel):
 # ===================================================================
 # SKEMA UNTUK PROJECT
 # ===================================================================
-
-class UserInProject(CamelModel):
-    id: int
-    username: str
-    nama_lengkap: Optional[str] = None
-
-class TeamInProject(CamelModel):
-    id: int
-    nama_tim: str
-
 class ProjectBase(CamelModel):
     nama_project: str
     team_id: Optional[int] = None
@@ -166,30 +191,15 @@ class Project(ProjectBase):
     id: int
     project_leader: Optional[UserInProject] = None
     team: Optional[TeamInProject] = None
+    dokumen: List[Dokumen] = [] # BARIS INI BENAR HANYA ADA DI SINI
 
 class ProjectPage(CamelModel):
     total: int
     items: List[Project]
 
 # ===================================================================
-# SKEMA UNTUK DOKUMEN & LAINNYA
+# SKEMA UNTUK AKTIVITAS
 # ===================================================================
-
-class Dokumen(CamelModel):
-    id: int
-    keterangan: str
-    tipe: str
-    path_atau_url: str
-    nama_file_asli: Optional[str] = None
-    diunggah_pada: datetime
-
-class DaftarDokumen(CamelModel):
-    id: int
-    nama_dokumen: str
-    dokumen_id: Optional[int] = None
-    dokumen_terkait: Optional[Dokumen] = None
-    status_pengecekan: bool
-
 class AktivitasBase(CamelModel):
     nama_aktivitas: str
     deskripsi: Optional[str] = None
@@ -207,6 +217,7 @@ class StatusPengecekanUpdate(CamelModel):
     
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
+    
     @model_validator(mode='before')
     @classmethod
     def check_required_fields(cls, data: Any) -> Any:
@@ -228,8 +239,9 @@ class Aktivitas(AktivitasBase):
     dokumen: List[Dokumen] = []
     daftar_dokumen_wajib: List[DaftarDokumen] = []
 
-
-# Skema untuk Token JWT
+# ===================================================================
+# SKEMA UNTUK AUTENTIKASI
+# ===================================================================
 class Token(CamelModel):
     access_token: str
     token_type: str
@@ -237,9 +249,8 @@ class Token(CamelModel):
 class TokenData(BaseModel):
     username: Optional[str] = None
 
-class DokumenCreate(BaseModel): # Tidak perlu konversi
-    keterangan: str
-    pathAtauUrl: str
-
+# Rebuild model untuk mengatasi circular reference jika ada
 Team.model_rebuild()
 User.model_rebuild()
+Aktivitas.model_rebuild()
+Project.model_rebuild()

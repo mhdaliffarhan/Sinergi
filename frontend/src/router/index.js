@@ -43,6 +43,12 @@ const router = createRouter({
       meta: { requiredAuth: true }
     },
     {
+      path: '/project/detail/:id',
+      name: 'project-detail',
+      component: () => import('../views/ProjectDetailView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/aktivitas/dashboard',
       name: 'aktivitas-dashboard',
       component: AktivitasDashboardView,

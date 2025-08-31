@@ -28,14 +28,68 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-UPLOAD_DIRECTORY = "./uploads"
+DOKUMEN_DIRECTORY = "./dokumen"
 UPLOAD_PROFILE_PIC_DIR = "./profile-picture"
-if not os.path.exists(UPLOAD_DIRECTORY):
-    os.makedirs(UPLOAD_DIRECTORY)
-app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+if not os.path.exists(DOKUMEN_DIRECTORY):
+    os.makedirs(DOKUMEN_DIRECTORY)
+app.mount("/dokumen", StaticFiles(directory="dokumen"), name="dokumen")
+
 if not os.path.exists(UPLOAD_PROFILE_PIC_DIR):
     os.makedirs(UPLOAD_PROFILE_PIC_DIR)
 app.mount("/profile-picture", StaticFiles(directory="profile-picture"), name="profile-picture")
+
+
+def get_document_path(db: Session, project_id: Optional[int] = None, aktivitas_id: Optional[int] = None):
+    """Membangun jalur folder dokumen berdasarkan ID proyek atau aktivitas."""
+    if not project_id and not aktivitas_id:
+        raise HTTPException(status_code=400, detail="project_id atau aktivitas_id harus diberikan.")
+    
+    # Ambil data dari database untuk membangun path
+    if aktivitas_id:
+        # Mengambil data aktivitas, proyek, dan tim secara efisien dengan joinedload
+        aktivitas = db.query(models.Aktivitas).options(
+            joinedload(models.Aktivitas.project).joinedload(models.Project.team)
+        ).filter(models.Aktivitas.id == aktivitas_id).first()
+        if not aktivitas or not aktivitas.project or not aktivitas.project.team:
+            raise HTTPException(status_code=404, detail="Data aktivitas atau proyek tidak ditemukan.")
+        
+        project = aktivitas.project
+        team = project.team
+        
+        # Buat nama folder aktivitas
+        # Menggunakan .replace(' ', '-') untuk menghindari spasi di nama folder
+        folder_aktivitas = f"{aktivitas.tanggal_mulai.strftime('%y%m%d')}_{aktivitas.nama_aktivitas.replace(' ', '-')}"
+        
+    elif project_id:
+        # Jika hanya project_id yang diberikan
+        project = db.query(models.Project).options(
+            joinedload(models.Project.team)
+        ).filter(models.Project.id == project_id).first()
+        if not project or not project.team:
+            raise HTTPException(status_code=404, detail="Data proyek atau tim tidak ditemukan.")
+        
+        team = project.team
+        folder_aktivitas = None
+        
+    else:
+        raise HTTPException(status_code=400, detail="project_id atau aktivitas_id harus diberikan.")
+        
+    # Membangun jalur hierarkis
+    folder_tahun = str(date.today().year)
+    folder_tim = team.nama_tim.replace(' ', '-')
+    folder_proyek = project.nama_project.replace(' ', '-')
+    
+    base_path = os.path.join(DOKUMEN_DIRECTORY, folder_tahun, folder_tim, folder_proyek)
+    
+    if folder_aktivitas:
+        base_path = os.path.join(base_path, folder_aktivitas)
+        
+    # Pastikan folder ada sebelum menyimpan file
+    if not os.path.exists(base_path):
+        os.makedirs(base_path)
+        
+    return base_path
 
 # ===================================================================
 # ENDPOINT OTENTIKASI & PENGGUNA
@@ -376,7 +430,8 @@ def get_project_by_id(project_id: int, db: Session = Depends(database.get_db)):
     """Mendapatkan detail proyek berdasarkan ID."""
     db_project = db.query(models.Project).options(
         joinedload(models.Project.project_leader),
-        joinedload(models.Project.team)
+        joinedload(models.Project.team),
+        joinedload(models.Project.dokumen)
     ).filter(models.Project.id == project_id).first()
     if not db_project:
         raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
@@ -598,10 +653,12 @@ def create_dokumen_untuk_aktivitas(
     if not aktivitas:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
 
-    # Simpan file fisik (tidak berubah)
+    target_dir = get_document_path(db, aktivitas_id=aktivitas_id)
+
+    target_dir = get_document_path(db, aktivitas_id=aktivitas_id)
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+    file_location = os.path.join(target_dir, unique_filename)
     try:
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)
@@ -618,7 +675,7 @@ def create_dokumen_untuk_aktivitas(
     )
     db.add(db_dokumen)
     db.commit()
-    db.refresh(db_dokumen) # Refresh untuk memastikan db_dokumen.id sudah ada
+    db.refresh(db_dokumen)
 
     # 2. JIKA ada checklist_item_id, BARU perbarui item checklist
     if checklist_item_id:
@@ -659,6 +716,82 @@ def add_link_untuk_aktivitas(
     
     return db_dokumen
 
+# --- ENDPOINT UNGGAH DOKUMEN UNTUK PROYEK ---
+@app.post("/api/projects/{project_id}/dokumen", response_model=schemas.Dokumen)
+def create_dokumen_untuk_proyek(
+    project_id: int,
+    keterangan: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Mengunggah file ke sebuah proyek.
+    File akan disimpan di jalur: /dokumen/{tahun}/{nama_tim}/{nama_proyek}/
+    """
+    # 1. Cari proyek berdasarkan ID
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+
+    # 2. Dapatkan jalur penyimpanan baru menggunakan fungsi pembantu
+    target_dir = get_document_path(db, project_id=project_id)
+    file_extension = file.filename.split(".")[-1]
+    unique_filename = f"{uuid.uuid4()}.{file_extension}"
+    file_location = os.path.join(target_dir, unique_filename)
+
+    # 3. Simpan file fisik
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    finally:
+        file.file.close()
+
+    # 4. Buat entri dokumen baru di database dengan project_id
+    db_dokumen = models.Dokumen(
+        project_id=project_id,
+        keterangan=keterangan,
+        tipe='FILE',
+        path_atau_url=file_location,
+        nama_file_asli=file.filename,
+        tipe_file_mime=file.content_type
+    )
+    db.add(db_dokumen)
+    db.commit()
+    db.refresh(db_dokumen)
+    
+    return db_dokumen
+
+# --------------------------------------------------------------------
+
+# --- ENDPOINT TAMBAH LINK UNTUK PROYEK ---
+@app.post("/api/projects/{project_id}/links", response_model=schemas.Dokumen)
+def add_link_untuk_proyek(
+    project_id: int,
+    link_data: schemas.DokumenCreate,
+    db: Session = Depends(database.get_db)
+):
+    """
+    Menambahkan link ke sebuah proyek.
+    """
+    # 1. Cari proyek berdasarkan ID
+    project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+
+    # 2. Buat entri dokumen baru dengan tipe 'LINK'
+    db_dokumen = models.Dokumen(
+        project_id=project_id,
+        keterangan=link_data.keterangan,
+        tipe='LINK',
+        path_atau_url=link_data.pathAtauUrl
+    )
+    
+    db.add(db_dokumen)
+    db.commit()
+    db.refresh(db_dokumen)
+    
+    return db_dokumen
+
 # --- ENDPOINT BARU UNTUK MENGGANTI FILE DI CHECKLIST ---
 @app.post("/api/checklist/{item_id}/replace", response_model=schemas.Dokumen)
 def replace_checklist_dokumen(
@@ -678,7 +811,7 @@ def replace_checklist_dokumen(
     # 2. Simpan file baru dan buat entri dokumen baru (logika sama seperti upload)
     file_extension = file.filename.split(".")[-1]
     unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_location = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+    file_location = os.path.join(DOKUMEN_DIRECTORY, unique_filename)
     try:
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)

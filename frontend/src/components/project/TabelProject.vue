@@ -51,8 +51,6 @@ const props = defineProps({
 const router = useRouter();
 
 const goToDetail = (id) => {
-  // Anda bisa membuat halaman detail proyek di sini jika diperlukan
-  // router.push({ name: 'project-detail', params: { id: id } });
-  console.log('Navigasi ke detail proyek ID:', id);
+  router.push({ name: 'project-detail', params: { id: id } });
 };
 </script>

@@ -1,5 +1,6 @@
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey, Table, Boolean, DATE
+from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, Time, ForeignKey, Table, Boolean, DATE, DateTime
 from sqlalchemy.orm import relationship
+from sqlalchemy.sql import func
 from database import Base
 
 user_team_link = Table('user_team_link', Base.metadata,
@@ -30,6 +31,7 @@ class Project(Base):
     project_leader = relationship("User", back_populates="created_projects")
     team = relationship("Team", back_populates="projects")
     aktivitas = relationship("Aktivitas", back_populates="project", cascade="all, delete-orphan")
+    dokumen = relationship("Dokumen", back_populates="project")
 
 class Aktivitas(Base):
     __tablename__ = "aktivitas"
@@ -59,8 +61,12 @@ class Dokumen(Base):
     path_atau_url = Column(Text, nullable=False)
     nama_file_asli = Column(String, nullable=True)
     tipe_file_mime = Column(String, nullable=True)
-    diunggah_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
-    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"), nullable=False) 
+    diunggah_pada = Column(DateTime, server_default=func.now())
+    
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    project = relationship("Project", back_populates="dokumen")
+    
+    aktivitas_id = Column(Integer, ForeignKey("aktivitas.id"), nullable=True) 
     aktivitas = relationship("Aktivitas", back_populates="dokumen")
 
 class DaftarDokumen(Base):
