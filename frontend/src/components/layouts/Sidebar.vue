@@ -55,21 +55,17 @@ onUnmounted(() => window.removeEventListener('resize', updateIsMobile));
 // Struktur Menu (tidak berubah)
 const menuItems = computed(() => {
   const baseMenu = [
-    { label: 'Dashboard', to: '/dashboard', icon: '📊' },
+    { label: 'Dashboard', to: '/aktivitas/dashboard', icon: '📊' },
+    { label: 'Project', to: '/project', icon: '💼'},
     { 
-      label: 'Aktivitas', 
-      icon: '⏳',
-      children: [
-        { label: 'Dashboard', to: '/aktivitas/dashboard' },
-        { label: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
-      ]
+      label: 'Aktivitas', to: '/aktivitas/daftar', icon: '✅'
     },
     { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
   ];
   if (authStore.isAdmin) {
     baseMenu.push({
       label: 'Admin', 
-      icon: '🧑🏻‍💻',
+      icon: '⚙️',
       children: [
         { label: 'Manajemen User', to: '/admin/users' },
         { label: 'Manajemen Tim', to: '/admin/teams'},

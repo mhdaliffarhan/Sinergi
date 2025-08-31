@@ -339,6 +339,77 @@ def remove_team_member(team_id: int, user_id: int, db: Session = Depends(databas
 
     return db_team
 
+# ===================================================================
+# ENDPOINT UNTUK MANAJEMEN PROJECT
+# ===================================================================
+
+@app.post("/api/projects", response_model=schemas.Project, response_model_by_alias=True)
+def create_project(project: schemas.ProjectCreate, db: Session = Depends(database.get_db)):
+    """Membuat proyek baru (hanya Superadmin atau Admin)."""
+    project_data = project.dict(by_alias=False)
+    db_project = models.Project(**project_data)
+    db.add(db_project)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+@app.get("/api/projects", response_model=schemas.ProjectPage, response_model_by_alias=True)
+def get_all_projects(
+    db: Session = Depends(database.get_db),
+    skip: int = 0,
+    limit: int = 10,
+    search: Optional[str] = None
+):
+    """Mendapatkan daftar semua proyek dengan paginasi dan pencarian."""
+    query = db.query(models.Project).options(
+        joinedload(models.Project.project_leader),
+        joinedload(models.Project.team)
+    )
+    if search:
+        query = query.filter(models.Project.nama_project.ilike(f"%{search}%"))
+    total = query.count()
+    projects = query.order_by(models.Project.id.asc()).offset(skip).limit(limit).all()
+    return {"total": total, "items": projects}
+
+@app.get("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True)
+def get_project_by_id(project_id: int, db: Session = Depends(database.get_db)):
+    """Mendapatkan detail proyek berdasarkan ID."""
+    db_project = db.query(models.Project).options(
+        joinedload(models.Project.project_leader),
+        joinedload(models.Project.team)
+    ).filter(models.Project.id == project_id).first()
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+    return db_project
+
+@app.put("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def update_project(project_id: int, project_update: schemas.ProjectUpdate, db: Session = Depends(database.get_db)):
+    """Memperbarui proyek (hanya Superadmin atau Admin)."""
+    db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
+    if not db_project:
+        raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+    
+    update_data = project_update.dict(exclude_unset=True, by_alias=False)
+    for key, value in update_data.items():
+        setattr(db_project, key, value)
+    db.commit()
+    db.refresh(db_project)
+    return db_project
+
+@app.delete("/api/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+def delete_project(project_id: int, db: Session = Depends(database.get_db)):
+    """Menghapus proyek (hanya Superadmin atau Admin)."""
+    project_query = db.query(models.Project).filter(models.Project.id == project_id)
+    db_project = project_query.first()
+
+    if db_project is None:
+        raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+    
+    project_query.delete(synchronize_session=False)
+    db.commit()
+    
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
 @app.get("/api/sistem-roles", response_model=List[schemas.SistemRole])
 def get_all_sistem_roles(db: Session = Depends(database.get_db)):
     """Mengembalikan semua peran sistem yang tersedia."""

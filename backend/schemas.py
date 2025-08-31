@@ -82,6 +82,10 @@ class UserCreate(UserBase):
         if not any(c.isdigit() for c in password):
             raise ValueError("Password harus mengandung angka")
         return self
+    
+class ProjectInUser(CamelModel):
+    id: int
+    nama_project: str
 
 class UserWithTeams(UserBase):
     id: int
@@ -91,6 +95,7 @@ class UserWithTeams(UserBase):
     teams: List[TeamInUser] = []
     is_ketua_tim: bool = False
     ketua_tim_aktif: List[Team] = []
+    created_projects: List[ProjectInUser] = []
 
 class UserUpdate(CamelModel):
     nama_lengkap: Optional[str] = None
@@ -131,6 +136,40 @@ class TeamPage(CamelModel):
     total: int
     items: List[Team]
 
+# ===================================================================
+# SKEMA UNTUK PROJECT
+# ===================================================================
+
+class UserInProject(CamelModel):
+    id: int
+    username: str
+    nama_lengkap: Optional[str] = None
+
+class TeamInProject(CamelModel):
+    id: int
+    nama_tim: str
+
+class ProjectBase(CamelModel):
+    nama_project: str
+    team_id: Optional[int] = None
+    project_leader_id: int
+
+class ProjectCreate(ProjectBase):
+    pass
+
+class ProjectUpdate(CamelModel):
+    nama_project: Optional[str] = None
+    team_id: Optional[int] = None
+    project_leader_id: Optional[int] = None
+    
+class Project(ProjectBase):
+    id: int
+    project_leader: Optional[UserInProject] = None
+    team: Optional[TeamInProject] = None
+
+class ProjectPage(CamelModel):
+    total: int
+    items: List[Project]
 
 # ===================================================================
 # SKEMA UNTUK DOKUMEN & LAINNYA

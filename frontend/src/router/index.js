@@ -9,6 +9,7 @@ import AktivitasDashboardView from '../views/AktivitasDashboardView.vue'
 import AktivitasDaftarView from '../views/AktivitasDaftarView.vue'
 import AboutView from '@/views/AboutView.vue'
 import ProfileView from '@/views/ProfileView.vue'
+import ProjectView from '@/views/ProjectView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -34,6 +35,12 @@ const router = createRouter({
       name: 'dashboard',
       component: AboutView,
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/project',
+      name: 'project',
+      component: ProjectView,
+      meta: { requiredAuth: true }
     },
     {
       path: '/aktivitas/dashboard',

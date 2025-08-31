@@ -7,6 +7,30 @@ user_team_link = Table('user_team_link', Base.metadata,
     Column('team_id', Integer, ForeignKey('teams.id'), primary_key=True)
 )
 
+class Team(Base):
+    __tablename__ = "teams"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_tim = Column(String, unique=False, nullable=False)
+    valid_from = Column(DATE, nullable=True)
+    valid_until = Column(DATE, nullable=True)
+    ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
+    users = relationship("User", secondary=user_team_link, back_populates="teams")
+    aktivitas = relationship("Aktivitas", back_populates="team")
+    projects = relationship("Project", back_populates="team")
+    warna = Column(String(7), nullable=True, default="#3b82f6")
+
+class Project(Base):
+    __tablename__ = "projects"
+    id = Column(Integer, primary_key=True, index=True)
+    nama_project = Column(String, index=True, nullable=False)
+    team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    project_leader_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+
+    project_leader = relationship("User", back_populates="created_projects")
+    team = relationship("Team", back_populates="projects")
+    aktivitas = relationship("Aktivitas", back_populates="project", cascade="all, delete-orphan")
+
 class Aktivitas(Base):
     __tablename__ = "aktivitas"
     id = Column(Integer, primary_key=True, index=True)
@@ -19,9 +43,11 @@ class Aktivitas(Base):
     dibuat_pada = Column(TIMESTAMP(timezone=True), server_default='now()')
     creator_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
 
     creator = relationship("User", back_populates="created_aktivitas")
     team = relationship("Team", back_populates="aktivitas")
+    project = relationship("Project", back_populates="aktivitas")
     dokumen = relationship("Dokumen", back_populates="aktivitas", cascade="all, delete-orphan")
     daftar_dokumen_wajib = relationship("DaftarDokumen", back_populates="aktivitas", cascade="all, delete-orphan")
 
@@ -61,18 +87,7 @@ class User(Base):
     jabatan = relationship("Jabatan")
     teams = relationship("Team", secondary=user_team_link, back_populates="users")
     created_aktivitas = relationship("Aktivitas", back_populates="creator")
-
-class Team(Base):
-    __tablename__ = "teams"
-    id = Column(Integer, primary_key=True, index=True)
-    nama_tim = Column(String, unique=False, nullable=False)
-    valid_from = Column(DATE, nullable=True)
-    valid_until = Column(DATE, nullable=True)
-    ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
-    ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
-    users = relationship("User", secondary=user_team_link, back_populates="teams")
-    aktivitas = relationship("Aktivitas", back_populates="team")
-    warna = Column(String(7), nullable=True, default="#3b82f6")
+    created_projects = relationship("Project", back_populates="project_leader")
 
 class SistemRole(Base):
     __tablename__ = "sistem_roles"
