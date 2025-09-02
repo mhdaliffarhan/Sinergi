@@ -16,7 +16,7 @@
       </div>
 
       <div>
-        <label for="ketua-tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ketua Tim (Opsional)</label>
+        <label for="ketua-tim" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ketua Tim</label>
         <select 
           id="ketua-tim" 
           v-model="form.ketuaTimId"
@@ -27,6 +27,7 @@
             {{ user.namaLengkap }}
           </option>
         </select>
+        <p v-if="errors.ketuaTimId" class="mt-1 text-xs text-red-500">{{ errors.ketuaTimId }}</p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -132,6 +133,11 @@ const validate = () => {
 
   if (!form.namaTim.trim()) {
     errors.namaTim = 'Nama tim wajib diisi.';
+    isValid = false;
+  }
+
+  if (!form.ketuaTimId) {
+    errors.ketuaTimId = 'Ketua tim wajib dipilih.';
     isValid = false;
   }
   

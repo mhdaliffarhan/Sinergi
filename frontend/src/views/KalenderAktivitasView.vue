@@ -170,7 +170,7 @@ const isTeamSelected = (team) => {
   return selectedTeams.value.some(t => t.id === team.id);
 };
 
-// --- Logika Kalender dan Timeline (Tidak ada perubahan signifikan) ---
+// --- Logika Kalender dan Timeline ---
 
 const calendarEvents = computed(() =>
   filteredActivities.value.map(a => {

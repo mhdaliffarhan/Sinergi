@@ -3,7 +3,7 @@
     <div class="space-y-4">
       
       <div>
-        <label for="nama-project" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Proyek</label>
+        <label for="nama-project" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Project</label>
         <input 
           type="text" 
           id="nama-project" 
@@ -36,7 +36,7 @@
       </div>
 
       <div>
-        <label for="project-leader" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Pemimpin Proyek</label>
+        <label for="project-leader" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Project Leader</label>
         <select 
           id="project-leader" 
           v-model="form.projectLeaderId"
@@ -44,7 +44,7 @@
           :disabled="!form.teamId"
           class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
         >
-          <option disabled value="">Pilih pemimpin proyek</option>
+          <option disabled value="">Pilih Project Leader</option>
           <option 
             v-for="user in teamMembers" 
             :key="user.id" 
@@ -63,7 +63,7 @@
         Batal
       </button>
       <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none">
-        Simpan Proyek
+        Buat Project
       </button>
     </div>
   </form>

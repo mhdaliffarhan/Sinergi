@@ -3,6 +3,7 @@
     <div class="space-y-4">
       
       <div>
+        <a href="">{{ project }}</a>
         <label for="nama-aktivitas" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Nama Aktivitas</label>
         <input 
           type="text" 
@@ -44,6 +45,62 @@
           </option>
         </select>
         <p v-if="errors.teamId" class="mt-1 text-xs text-red-500">{{ errors.teamId }}</p>
+      </div>
+      <div v-if="form.teamId">
+        <label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Proyek</label>
+        <select
+          id="project"
+          v-model="form.projectId"
+          :class="{ 'border-red-500': errors.projectId }"
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
+        >
+          <option disabled value="">Pilih proyek</option>
+          <option
+            v-for="project in filteredProjects"
+            :key="project.id"
+            :value="project.id"
+          >
+            {{ project.namaProject }}
+          </option>
+        </select>
+        <p v-if="errors.projectId" class="mt-1 text-xs text-red-500">{{ errors.projectId }}</p>
+      </div>
+      
+      <div v-if="form.teamId">
+        <label for="anggota" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Anggota yang Terlibat
+        </label>
+        <div class="relative mt-1">
+          <div class="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm dark:bg-gray-700 dark:text-white cursor-pointer" @click="toggleDropdown">
+            <div v-if="selectedMembers.length === 0" class="text-gray-400">Pilih anggota tim...</div>
+            <div v-else class="flex flex-wrap gap-2">
+              <span v-for="member in selectedMembers" :key="member.id" class="inline-flex items-center rounded-full bg-blue-100 dark:bg-blue-800 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:text-blue-200">
+                {{ member.namaLengkap }}
+                <button type="button" @click.stop="removeMember(member.id)" class="ml-1 -mr-0.5 h-4 w-4 text-blue-500 hover:text-blue-700">
+                  <svg class="h-full w-full" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+              </span>
+            </div>
+          </div>
+          
+          <div v-if="isDropdownOpen" class="absolute z-10 mt-1 w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md shadow-lg py-1 max-h-60 overflow-y-auto">
+            <input type="text" v-model="searchQuery" placeholder="Cari anggota..." class="sticky top-0 w-full px-4 py-2 bg-gray-50 border-b border-gray-300 dark:border-gray-600 focus:outline-none text-sm  sm:text-sm dark:bg-gray-700 dark:text-white" @click.stop/>
+            <ul class="py-1">
+              <li v-for="user in filteredMembers" :key="user.id" @click="selectMember(user)" class="px-4 py-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700  sm:text-sm dark:bg-gray-700 dark:text-white">
+                <span :class="{'font-bold': isSelected(user.id)}">{{ user.namaLengkap }}</span>
+              </li>
+            </ul>
+            <p v-if="filteredMembers.length === 0" class="text-center text-gray-400 py-4 text-sm">Tidak ada anggota ditemukan.</p>
+          </div>
+        </div>
+      </div>
+
+      <hr class="border-gray-200 dark:border-gray-700">
+      <div>
+        <label for="melibatkanKepalaKantor" class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input type="checkbox" id="melibatkanKepalaKantor" v-model="form.melibatkanKepalaKantor" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+          <span>Libatkan Kepala Kantor dalam aktivitas ini</span>
+        </label>
       </div>
 
       <hr class="border-gray-200 dark:border-gray-700">
@@ -147,7 +204,9 @@ const props = defineProps({
     type: Object,
     default: null
   },
-  teamList: { type: Array, required: true }
+  teamList: { type: Array, required: true },
+  projectList: { type: Array, required: true },
+  teamMembers: { type: Object, required: true }
 });
   
 const daftarTim = computed(() => {
@@ -158,18 +217,55 @@ const daftarTim = computed(() => {
   );
 });
 
+const filteredProjects = computed(() => {
+  if (!form.teamId || !props.projectList) {
+    return [];
+  }
+  return props.projectList.filter(project => project.teamId === form.teamId);
+});
+
 const emit = defineEmits(['close', 'submit']);
+
+// State untuk multi-select
+const isDropdownOpen = ref(false);
+const searchQuery = ref('');
+const selectedMembers = ref([]);
+
+// Komputerisasi untuk anggota tim yang difilter
+const filteredMembers = computed(() => {
+  const members = props.teamMembers[form.teamId] || [];
+  const query = searchQuery.value.toLowerCase();
+  return members.filter(user =>
+    user.namaLengkap.toLowerCase().includes(query) || user.username.toLowerCase().includes(query)
+  );
+});
+
+// Method untuk multi-select
+const toggleDropdown = () => { isDropdownOpen.value = !isDropdownOpen.value; };
+const isSelected = (id) => selectedMembers.value.some(member => member.id === id);
+const selectMember = (user) => {
+  if (!isSelected(user.id)) {
+    selectedMembers.value.push(user);
+  } else {
+    removeMember(user.id);
+  }
+};
+const removeMember = (id) => {
+  selectedMembers.value = selectedMembers.value.filter(member => member.id !== id);
+};
 
 const form = reactive({
   namaAktivitas: '',
   deskripsi: '',
   teamId: '',
+  projectId: '',
   useDateRange: false,
   useTime: false,
   tanggalMulai: '',
   tanggalSelesai: '',
   jamMulai: '',
   jamSelesai: '',
+  melibatkanKepalaKantor: false
 });
 
 const namaDokumenBaru = ref('');
@@ -193,12 +289,14 @@ watch(() => props.initialData, (newData) => {
     useTime: false, tanggalMulai: '', tanggalSelesai: '', jamMulai: '', jamSelesai: '',
   });
   daftarDokumenWajib.value = [];
+  selectedMembers.value = []; // Tambahan: Reset anggota yang dipilih
 
   if (newData) {
     form.namaAktivitas = newData.namaAktivitas || '';
     form.deskripsi = newData.deskripsi || '';
     form.teamId = newData.teamId || '';
-    
+    form.projectId = newData.projectId || '';
+
     const isRange = !!newData.tanggalSelesai;
     form.useDateRange = isRange;
     form.tanggalMulai = newData.tanggalMulai?.split('T')[0] || '';
@@ -208,11 +306,19 @@ watch(() => props.initialData, (newData) => {
     form.jamMulai = newData.jamMulai || '';
     form.jamSelesai = newData.jamSelesai || '';
     daftarDokumenWajib.value = newData.daftarDokumenWajib?.map(d => d.namaDokumen) || [];
-
+    selectedMembers.value = newData.users || []; // Tambahan: Isi anggota yang sudah ada
   }
 }, { immediate: true, deep: true });
 
-// Membersihkan tanggalSelesai (sudah benar)
+watch(() => form.teamId, (newTeamId, oldTeamId) => {
+  if (newTeamId !== oldTeamId) {
+    form.projectId = '';
+    selectedMembers.value = []; // Tambahan: Kosongkan pilihan anggota saat tim berubah
+    isDropdownOpen.value = false;
+    searchQuery.value = '';
+  }
+});
+
 watch(() => form.useDateRange, (isRange) => {
   if (!isRange) {
     form.tanggalSelesai = '';
@@ -222,6 +328,7 @@ watch(() => form.useDateRange, (isRange) => {
 const errors = reactive({
   namaAktivitas: null,
   teamId: null,
+  projectId: null,
   tanggalMulai: null,
   tanggalSelesai: null,
   jamMulai: null,
@@ -231,10 +338,11 @@ const errors = reactive({
 const validate = () => {
   Object.keys(errors).forEach(key => errors[key] = null);
   let isValid = true;
-  console.log(form);
 
   if (!form.namaAktivitas) { errors.namaAktivitas = 'Wajib diisi.'; isValid = false; }
   if (!form.teamId) { errors.teamId = 'Wajib dipilih.'; isValid = false; }
+  if (form.teamId && !form.projectId) { errors.projectId = 'Wajib dipilih.'; isValid = false; }
+  
   if (!form.tanggalMulai) { errors.tanggalMulai = 'Wajib diisi.'; isValid = false; }
   
   if (form.useDateRange) {
@@ -260,7 +368,12 @@ const validate = () => {
 
 const handleSubmit = () => {
   if (validate()) {
-    emit('submit', { ...form, daftarDokumenWajib: daftarDokumenWajib.value });
+    const payload = {
+      ...form,
+      daftarDokumenWajib: daftarDokumenWajib.value,
+      anggotaAktivitasIds: selectedMembers.value.map(member => member.id)
+    };
+    emit('submit', payload);
   }
 };
 </script>

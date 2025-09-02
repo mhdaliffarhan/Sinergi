@@ -24,6 +24,7 @@
         :initial-data="team"
         :user-list="props.userList"
         @submit="handleUpdate"
+        @close="closeModal"
         :is-edit-mode="true"
       />
     </div>
@@ -124,6 +125,10 @@ const availableUsers = computed(() => {
 const sortedTeamMembers = computed(() => {
     return [...teamMembers.value].sort((a, b) => a.namaLengkap.localeCompare(b.namaLengkap));
 });
+
+const closeModal = () => {
+  emit('close');
+};
 
 // Fungsi untuk meneruskan update detail tim ke parent
 const handleUpdate = (formData) => {

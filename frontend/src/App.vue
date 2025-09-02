@@ -17,7 +17,7 @@
       <div
         v-if="uiStore.isSidebarOpen && isMobile"
         @click="uiStore.closeSidebar"
-        class="fixed inset-0 bg-black bg-opacity-50 z-20 md:hidden"
+        class="fixed inset-0 z-20 md:hidden"
       ></div>
     </div>
   </div>
@@ -54,6 +54,4 @@ onUnmounted(() => window.removeEventListener('resize', updateIsMobile));
 </script>
 
 <style>
-/* Kita bisa menambahkan style global di sini jika perlu */
-/* Pastikan file src/assets/main.css sudah berisi directive tailwind */
 </style>

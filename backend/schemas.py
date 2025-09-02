@@ -1,12 +1,17 @@
 from __future__ import annotations
+
 from pydantic import BaseModel, model_validator, field_validator, Field, ConfigDict
+
 from typing import Optional, Any, List
+
 from datetime import date, time, datetime
+
 
 # Fungsi untuk konversi nama ke camelCase
 def to_camel(snake_str: str) -> str:
     parts = snake_str.split('_')
     return parts[0] + "".join(word.capitalize() for word in parts[1:])
+
 
 # Model dasar yang akan melakukan konversi otomatis untuk SEMUA skema
 class CamelModel(BaseModel):
@@ -16,6 +21,7 @@ class CamelModel(BaseModel):
         from_attributes=True
     )
 
+
 # ===================================================================
 # SKEMA UNTUK PERAN & JABATAN
 # ===================================================================
@@ -23,9 +29,11 @@ class Jabatan(CamelModel):
     id: int
     nama_jabatan: str
 
+
 class SistemRole(CamelModel):
     id: int
     nama_role: str
+
 
 # ===================================================================
 # SKEMA UNTUK DOKUMEN
@@ -37,14 +45,17 @@ class DokumenBase(CamelModel):
     nama_file_asli: Optional[str] = None
     tipe_file_mime: Optional[str] = None
 
+
 class DokumenCreate(DokumenBase):
     pass
+
 
 class Dokumen(DokumenBase):
     id: int
     diunggah_pada: datetime
     aktivitas_id: Optional[int] = None
     project_id: Optional[int] = None
+
 
 # ===================================================================
 # SKEMA UNTUK DAFTAR DOKUMEN WAJIB
@@ -56,16 +67,24 @@ class DaftarDokumen(CamelModel):
     dokumen_terkait: Optional[Dokumen] = None
     status_pengecekan: bool
 
+
 # ===================================================================
 # SKEMA UNTUK USER
 # ===================================================================
-# User schemas untuk relasi nested
+# Skema untuk relasi nested
 class UserInTeam(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
 
+
 class UserInProject(CamelModel):
+    id: int
+    username: str
+    nama_lengkap: Optional[str] = None
+
+# Tambahan: Skema untuk user yang terlibat dalam aktivitas
+class UserInAktivitas(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
@@ -77,16 +96,29 @@ class TeamInUser(CamelModel):
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
 
+
 # Skema untuk Project yang akan digunakan di dalam User
 class ProjectInUser(CamelModel):
     id: int
     nama_project: str
+    project_leader_id: Optional[int] = None
+    
+# Tambahan: Skema untuk aktivitas yang akan digunakan di dalam User
+class AktivitasInUser(CamelModel):
+    id: int
+    nama_aktivitas: str
+    tanggal_mulai: Optional[date] = None
+    tanggal_selesai: Optional[date] = None
+    jam_mulai: Optional[time] = None
+    jam_selesai: Optional[time] = None
+
 
 # Base dan Create skema untuk User
 class UserBase(CamelModel):
     username: str
     nama_lengkap: Optional[str] = None
     foto_profil_url: Optional[str] = None
+
 
 class UserCreate(UserBase):
     password: str
@@ -104,6 +136,7 @@ class UserCreate(UserBase):
             raise ValueError("Password harus mengandung angka")
         return self
 
+
 # Skema utama untuk menampilkan User secara penuh
 class User(UserBase):
     id: int
@@ -112,6 +145,8 @@ class User(UserBase):
     jabatan: Optional[Jabatan] = None
     teams: List[TeamInUser] = []
     created_projects: List[ProjectInUser] = []
+    aktivitas: List[AktivitasInUser] = [] # Tambahan: Daftar aktivitas yang melibatkan user
+
 
 # Skema khusus untuk endpoint "me" yang menampilkan informasi lebih detail
 class UserWithTeams(UserBase):
@@ -119,16 +154,19 @@ class UserWithTeams(UserBase):
     is_active: bool
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
-    teams: List[TeamInUser] = [] # Menggunakan TeamInUser untuk menghindari referensi silang yang kompleks
+    teams: List[TeamInUser] = []
     is_ketua_tim: bool = False
-    ketua_tim_aktif: List[TeamInUser] = [] # Ganti Any dengan TeamInUser untuk tipenya
+    ketua_tim_aktif: List[TeamInUser] = []
     created_projects: List[ProjectInUser] = []
+    aktivitas: List[AktivitasInUser] = [] # Tambahan: Daftar aktivitas yang melibatkan user
+
 
 class UserUpdate(CamelModel):
     nama_lengkap: Optional[str] = None
     sistem_role_id: Optional[int] = None
     jabatan_id: Optional[int] = None
     is_active: Optional[bool] = None
+
 
 class PasswordUpdate(CamelModel):
     old_password: str
@@ -146,9 +184,11 @@ class PasswordUpdate(CamelModel):
             raise ValueError("Password baru harus mengandung angka")
         return self
 
+
 class UserPage(CamelModel):
     total: int
     items: List[User]
+
 
 # ===================================================================
 # SKEMA UNTUK TEAM
@@ -156,6 +196,9 @@ class UserPage(CamelModel):
 class TeamInProject(CamelModel):
     id: int
     nama_tim: str
+    ketua_tim_id: Optional[int] = None
+    warna: Optional[str] = None
+
 
 class TeamBase(CamelModel):
     nama_tim: str
@@ -164,11 +207,14 @@ class TeamBase(CamelModel):
     ketua_tim_id: Optional[int] = None
     warna: Optional[str] = None
 
+
 class TeamCreate(TeamBase):
     pass
 
+
 class TeamUpdate(TeamBase):
     pass
+
 
 # Skema utama untuk menampilkan Team secara penuh
 class Team(TeamBase):
@@ -176,9 +222,11 @@ class Team(TeamBase):
     ketua_tim: Optional[UserInTeam] = None
     users: List[UserInTeam] = []
 
+
 class TeamPage(CamelModel):
     total: int
     items: List[Team]
+
 
 # ===================================================================
 # SKEMA UNTUK PROJECT
@@ -188,13 +236,16 @@ class ProjectBase(CamelModel):
     team_id: Optional[int] = None
     project_leader_id: int
 
+
 class ProjectCreate(ProjectBase):
     pass
+
 
 class ProjectUpdate(CamelModel):
     nama_project: Optional[str] = None
     team_id: Optional[int] = None
     project_leader_id: Optional[int] = None
+
 
 class Project(ProjectBase):
     id: int
@@ -202,9 +253,11 @@ class Project(ProjectBase):
     team: Optional[TeamInProject] = None
     dokumen: List[Dokumen] = []
 
+
 class ProjectPage(CamelModel):
     total: int
     items: List[Project]
+
 
 # ===================================================================
 # SKEMA UNTUK AKTIVITAS
@@ -222,11 +275,16 @@ class AktivitasBase(CamelModel):
     creator_user_id: Optional[int] = None
     project_id: Optional[int] = None
 
+
 class StatusPengecekanUpdate(CamelModel):
     status_pengecekan: bool
 
+
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
+    anggota_aktivitas_ids: List[int] = []
+    melibatkan_kepala_kantor: bool = False
+
 
     @model_validator(mode='before')
     @classmethod
@@ -241,14 +299,17 @@ class AktivitasCreate(AktivitasBase):
                     raise ValueError('Tanggal Mulai dan Tanggal Selesai wajib diisi.')
         return data
 
+
 class Aktivitas(AktivitasBase):
     id: int
     dibuat_pada: datetime
     creator: Optional[UserInTeam] = None
-    team: Optional[TeamInProject] = None # Menggunakan TeamInProject untuk menghindari circular reference
-    project: Optional[ProjectInUser] = None # Menggunakan ProjectInUser untuk menghindari circular reference
+    team: Optional[TeamInProject] = None
+    project: Optional[ProjectInUser] = None
     dokumen: List[Dokumen] = []
     daftar_dokumen_wajib: List[DaftarDokumen] = []
+    users: List[UserInAktivitas] = []
+
 
 # ===================================================================
 # SKEMA UNTUK AUTENTIKASI
@@ -257,8 +318,10 @@ class Token(CamelModel):
     access_token: str
     token_type: str
 
+
 class TokenData(BaseModel):
     username: Optional[str] = None
+
 
 # Rebuild model untuk mengatasi circular reference jika ada
 Team.model_rebuild()

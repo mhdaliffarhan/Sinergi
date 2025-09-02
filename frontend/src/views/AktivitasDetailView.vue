@@ -29,7 +29,7 @@
 
               <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
                 <!-- RESPONSIVE: Posisi menu disesuaikan agar tidak keluar layar di mobile -->
-                <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-black ring-opacity-5 dark:ring-gray-600 focus:outline-none">
+                <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:outline-none">
                   <div class="py-1"> 
                     <MenuItem v-slot="{ active }">
                       <button @click="handleDownloadAll" :class="[active ? 'bg-green-100 dark:bg-green-700' : '', 'text-green-700 dark:text-green-200 block w-full text-left px-4 py-2 text-sm']">
@@ -112,7 +112,7 @@
     <!-- MODALS (Tidak perlu diubah) -->
     <FilePreviewModal :show="isPreviewModalOpen" :file-url="fileToPreview.url" :file-name="fileToPreview.name" :file-type="fileToPreview.type" @close="closePreviewModal" />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
-      <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList"/>
+      <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
     </ModalWrapper>
     <ModalWrapper :show="isLinkModalOpen" @close="closeLinkModal" title="Tambah Link Baru">
       <FormTambahLink @close="closeLinkModal" @submit="handleLinkSubmit" />
@@ -173,10 +173,13 @@ const replaceFileInput = ref(null);
 const checklistItemIdToUpload = ref(null);
 const itemToReplace = ref(null);
 const teamList = ref([]);
+const teamMembers = ref([]);
+const projectList = ref([]);
 
 
 const isKetuaTim = computed(() => {
-  const team = aktivitas.value?.team
+  const team = aktivitas.value?.team;
+  console.log("team : ", team);
   if (!team) return false
   return team.ketuaTimId === user?.id
 })
@@ -238,15 +241,41 @@ const fetchTeams = async () => {
       id: team.id,
       namaTim: team.namaTim 
     }));
+    for (const team of response.data) {
+      if (team.users && team.users.length > 0) {
+        teamMembers.value[team.id] = team.users.map(user => ({
+          id: user.id,
+          namaLengkap: user.namaLengkap,
+          username: user.username
+        }));
+      }
+    }
   } catch (error) {
     toast.error("Gagal memuat daftar tim.");
     console.error("Gagal mengambil data tim:", error);
   }
 };
 
+const fetchProjects = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/projects');
+    projectList.value = response.data.items.map(project => ({
+      id: project.id,
+      namaProject: project.namaProject,
+      teamId: project.teamId,
+      projectLeaderId: project.projectLeaderId
+    }));
+    console.log(projectList.value);
+  } catch (error) {
+    toast.error("Gagal memuat data project");
+    console.error("Gagal memuat data project: ", error);
+  }
+}
+
 onMounted(() => { 
   fetchDetailAktivitas(); 
   fetchTeams();
+  fetchProjects();
 });
 
 // --- Logika untuk Aktivitas (Edit/Hapus) ---

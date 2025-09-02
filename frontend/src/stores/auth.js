@@ -48,7 +48,7 @@ export const useAuthStore = defineStore('auth', () => {
       setToken(response.data.accessToken);
 
       await fetchUser();
-      await router.push('/dashboard');
+      await router.push('/aktivitas/dashboard');
       return true;
     } catch (error) {
       removeToken();

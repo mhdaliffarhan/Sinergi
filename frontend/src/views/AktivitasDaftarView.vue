@@ -52,7 +52,7 @@
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Buat Aktivitas Baru">
-      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :team-list="teamList"  />
+      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :project="aktivitas.projects" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
     </ModalWrapper>
   </div>
 </template>
@@ -72,6 +72,8 @@ const authStore = useAuthStore();
 const toast = useToast();
 const aktivitas = ref([]);
 const teamList = ref([]);
+const teamMembers = ref([]);
+const projectList = ref([]);
 const isModalOpen = ref(false);
 const viewMode = ref('table');
 const isLoading = ref(false);
@@ -85,6 +87,7 @@ const fetchAktivitas = async (query = '') => {
       params: { q: query }
     });
     aktivitas.value = response.data;
+    console.log(response.data);
   } catch (error) {
     toast.error("Gagal memuat data aktivitas.");
     console.error("Gagal mengambil data aktivitas:", error);
@@ -100,12 +103,38 @@ const fetchTeams = async () => {
       id: team.id,
       namaTim: team.namaTim 
     }));
+     // Perulangan untuk mengambil data user di setiap tim
+    for (const team of response.data) {
+      if (team.users && team.users.length > 0) {
+        teamMembers.value[team.id] = team.users.map(user => ({
+          id: user.id,
+          namaLengkap: user.namaLengkap,
+          username: user.username
+        }));
+      }
+    }
+    console.log("Anggota tim per tim:", teamMembers.value);
   } catch (error) {
     toast.error("Gagal memuat daftar tim.");
     console.error("Gagal mengambil data tim:", error);
   }
 };
 
+const fetchProjects = async () => {
+  try {
+    const response = await axios.get('http://127.0.0.1:8000/api/projects');
+    projectList.value = response.data.items.map(project => ({
+      id: project.id,
+      namaProject: project.namaProject,
+      teamId: project.teamId,
+      projectLeaderId: project.projectLeaderId
+    }));
+    console.log(projectList.value);
+  } catch (error) {
+    toast.error("Gagal memuat data project");
+    console.error("Gagal memuat data project: ", error);
+  }
+}
 
 watch(searchQuery, (newQuery) => {
   // Hapus timer yang ada setiap kali user mengetik
@@ -119,15 +148,12 @@ watch(searchQuery, (newQuery) => {
 onMounted(() => {
   fetchAktivitas();
   fetchTeams();
+  fetchProjects();
 });
 
 // --- FUNGSI SUBMIT YANG MENGGABUNGKAN SEMUANYA ---
 const handleActivitySubmit = async (formData) => {
-  // Buat salinan data form untuk kita modifikasi
   const payload = { ...formData };
-
-
-  // Daftar field yang harus diubah dari string kosong menjadi null
   const nullableFields = ['tanggal', 'tanggalMulai', 'tanggalSelesai', 'jamMulai', 'jamSelesai'];
 
   // Loop melalui setiap field dan ubah nilainya jika kosong
@@ -138,7 +164,7 @@ const handleActivitySubmit = async (formData) => {
   });
   
   try {
-    // Kirim 'payload' yang sudah bersih ke backend
+    console.log("Form buat aktivitas : ", payload);
     await axios.post('http://127.0.0.1:8000/api/aktivitas', payload);
     toast.success("Aktivitas berhasil dibuat!");
     closeModal();

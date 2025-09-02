@@ -41,53 +41,63 @@ app.mount("/profile-picture", StaticFiles(directory="profile-picture"), name="pr
 
 
 def get_document_path(db: Session, project_id: Optional[int] = None, aktivitas_id: Optional[int] = None):
-    """Membangun jalur folder dokumen berdasarkan ID proyek atau aktivitas."""
+    """
+    Fungsi pembantu untuk membangun jalur penyimpanan file berdasarkan
+    aktivitas atau proyek.
+    """
     if not project_id and not aktivitas_id:
         raise HTTPException(status_code=400, detail="project_id atau aktivitas_id harus diberikan.")
-    
-    # Ambil data dari database untuk membangun path
+
+    folder_tahun = str(date.today().year)
+    folder_tim = None
+    folder_proyek = None
+    folder_aktivitas = None
+
     if aktivitas_id:
-        # Mengambil data aktivitas, proyek, dan tim secara efisien dengan joinedload
+        # Muat aktivitas dan relasinya ke tim
         aktivitas = db.query(models.Aktivitas).options(
-            joinedload(models.Aktivitas.project).joinedload(models.Project.team)
+            joinedload(models.Aktivitas.team)
         ).filter(models.Aktivitas.id == aktivitas_id).first()
-        if not aktivitas or not aktivitas.project or not aktivitas.project.team:
-            raise HTTPException(status_code=404, detail="Data aktivitas atau proyek tidak ditemukan.")
         
-        project = aktivitas.project
-        team = project.team
+        if not aktivitas:
+            raise HTTPException(status_code=404, detail="Data aktivitas tidak ditemukan.")
+        if not aktivitas.team:
+            raise HTTPException(status_code=404, detail="Tim untuk aktivitas ini tidak ditemukan.")
         
-        # Buat nama folder aktivitas
-        # Menggunakan .replace(' ', '-') untuk menghindari spasi di nama folder
-        folder_aktivitas = f"{aktivitas.tanggal_mulai.strftime('%y%m%d')}_{aktivitas.nama_aktivitas.replace(' ', '-')}"
+        # Ambil project secara terpisah
+        if not aktivitas.project_id:
+            raise HTTPException(status_code=404, detail="Aktivitas tidak terhubung ke proyek manapun.")
+            
+        project = db.query(models.Project).filter(models.Project.id == aktivitas.project_id).first()
+        if not project:
+            raise HTTPException(status_code=404, detail="Proyek untuk aktivitas ini tidak ditemukan.")
+
+        folder_tim = aktivitas.team.nama_tim.replace(' ', '-')
+        folder_proyek = project.nama_project.replace(' ', '-')
+        folder_aktivitas = f"{aktivitas.tanggal_mulai.strftime('%y%m%d')}_{aktivitas.nama_aktivitas.replace(' ','-')}"
         
     elif project_id:
-        # Jika hanya project_id yang diberikan
+        # Muat proyek dan relasinya ke tim
         project = db.query(models.Project).options(
             joinedload(models.Project.team)
         ).filter(models.Project.id == project_id).first()
-        if not project or not project.team:
-            raise HTTPException(status_code=404, detail="Data proyek atau tim tidak ditemukan.")
         
-        team = project.team
-        folder_aktivitas = None
-        
-    else:
-        raise HTTPException(status_code=400, detail="project_id atau aktivitas_id harus diberikan.")
-        
+        if not project:
+            raise HTTPException(status_code=404, detail="Data proyek tidak ditemukan.")
+        if not project.team:
+            raise HTTPException(status_code=404, detail="Tim untuk proyek ini tidak ditemukan.")
+
+        folder_tim = project.team.nama_tim.replace(' ', '-')
+        folder_proyek = project.nama_project.replace(' ', '-')
+
     # Membangun jalur hierarkis
-    folder_tahun = str(date.today().year)
-    folder_tim = team.nama_tim.replace(' ', '-')
-    folder_proyek = project.nama_project.replace(' ', '-')
-    
     base_path = os.path.join(DOKUMEN_DIRECTORY, folder_tahun, folder_tim, folder_proyek)
     
     if folder_aktivitas:
         base_path = os.path.join(base_path, folder_aktivitas)
         
-    # Pastikan folder ada sebelum menyimpan file
     if not os.path.exists(base_path):
-        os.makedirs(base_path)
+        os.makedirs(base_path, exist_ok=True)
         
     return base_path
 
@@ -513,43 +523,85 @@ def get_all_aktivitas(
 
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
 def create_aktivitas(
-        aktivitas: schemas.AktivitasCreate, 
-        db: Session = Depends(database.get_db),
-        current_user: models.User = Depends(security.get_current_user)
-):   
-    aktivitas_data = aktivitas.dict(
-        exclude={
-            'daftar_dokumen_wajib',
-            'use_date_range',
-            'use_time'
-        },
-        by_alias=False
-    )
-    aktivitas_data['creator_user_id'] = current_user.id
-    aktivitas_data['team_id'] = aktivitas.team_id
+    aktivitas: schemas.AktivitasCreate, 
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(security.get_current_user)
+):
+    print("--- Memulai proses pembuatan aktivitas ---")
+    print(f"Data payload yang diterima: {aktivitas.dict()}")
 
+    # Logika untuk mengambil ID user Kepala Kantor
+    kepala_kantor_id = None
+    JABATAN_KEPALA_KANTOR_ID = 1 
+
+    try:
+        kepala_kantor = db.query(models.User).filter(
+            models.User.jabatan_id == JABATAN_KEPALA_KANTOR_ID
+        ).first()
+        if kepala_kantor:
+            kepala_kantor_id = kepala_kantor.id
+            print(f"Kepala Kantor ditemukan. ID: {kepala_kantor_id}")
+        else:
+            print("Kepala Kantor tidak ditemukan.")
+    except Exception as e:
+        print(f"Error mencari Kepala Kantor: {e}")
+
+    # Ekstrak data yang akan digunakan untuk membuat instance model Aktivitas
+    aktivitas_data = {
+        "nama_aktivitas": aktivitas.nama_aktivitas,
+        "deskripsi": aktivitas.deskripsi,
+        "tanggal_mulai": aktivitas.tanggal_mulai,
+        "tanggal_selesai": aktivitas.tanggal_selesai,
+        "jam_mulai": aktivitas.jam_mulai,
+        "jam_selesai": aktivitas.jam_selesai,
+        "team_id": aktivitas.team_id,
+        "project_id": aktivitas.project_id
+    }
+    
+    # Set creator_user_id dari pengguna yang sedang login
+    aktivitas_data['creator_user_id'] = current_user.id
+    
+    # Buat instance model Aktivitas dengan data yang sudah difilter
     db_aktivitas = models.Aktivitas(**aktivitas_data)
 
-    if aktivitas.use_date_range:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
-        db_aktivitas.tanggal_selesai = aktivitas.tanggal_selesai
-    else:
-        db_aktivitas.tanggal_mulai = aktivitas.tanggal_mulai
-        db_aktivitas.tanggal_selesai = None
+    # Tambahkan anggota tim ke objek aktivitas
+    anggota_aktivitas_ids = list(set(aktivitas.anggota_aktivitas_ids)) # Gunakan set untuk menghapus duplikat
     
+    # Tambahkan Kepala Kantor jika checkbox dicentang dan belum ada di daftar
+    if aktivitas.melibatkan_kepala_kantor and kepala_kantor_id and kepala_kantor_id not in anggota_aktivitas_ids:
+        anggota_aktivitas_ids.append(kepala_kantor_id)
+        print("Checkbox dicentang. ID Kepala Kantor ditambahkan ke daftar anggota.")
+    elif aktivitas.melibatkan_kepala_kantor and not kepala_kantor_id:
+        print("Checkbox dicentang, tapi Kepala Kantor tidak ditemukan di database.")
+    elif not aktivitas.melibatkan_kepala_kantor:
+        print("Checkbox Kepala Kantor tidak dicentang.")
+    
+    print(f"Daftar final ID anggota yang akan ditambahkan: {anggota_aktivitas_ids}")
+
+    if anggota_aktivitas_ids:
+        anggota_tim = db.query(models.User).filter(models.User.id.in_(anggota_aktivitas_ids)).all()
+        for user in anggota_tim:
+            db_aktivitas.users.append(user)
+        print(f"Berhasil melampirkan {len(anggota_tim)} anggota ke aktivitas.")
+    else:
+        print("Tidak ada anggota yang ditambahkan ke aktivitas ini.")
+
+
     # Tambahkan daftar dokumen wajib
     for nama_dok in aktivitas.daftar_dokumen_wajib:
         if nama_dok:
-            db_daftar_dokumen = models.DaftarDokumen(
-                nama_dokumen=nama_dok,
-                status_pengecekan=False
-                )
-            db_aktivitas.daftar_dokumen_wajib.append(db_daftar_dokumen)
+            db_aktivitas.daftar_dokumen_wajib.append(
+                models.DaftarDokumen(nama_dokumen=nama_dok, status_pengecekan=False)
+            )
 
+    # Simpan ke database
     db.add(db_aktivitas)
     db.commit()
     db.refresh(db_aktivitas)
     
+    print(f"Aktivitas berhasil disimpan dengan ID: {db_aktivitas.id}")
+    print(f"Total anggota yang tersimpan di database: {len(db_aktivitas.users)}")
+    print("--- Proses selesai ---")
     return db_aktivitas
 
 # --- ENDPOINT MENGAMBIL DETAIL AKTIVITAS ---
@@ -569,6 +621,7 @@ def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(database.get_db
     return db_aktivitas
 
 # --- ENDPOINT MENGUPDATE AKTIVITAS ---
+# --- ENDPOINT MENGUPDATE AKTIVITAS ---
 @app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
 def update_aktivitas(
     aktivitas_id: int, 
@@ -576,37 +629,61 @@ def update_aktivitas(
     db: Session = Depends(database.get_db), 
     current_user: models.User = Depends(security.get_current_user)
 ):
-    """Memperbarui aktivitas yang ada beserta checklist-nya."""
+    """Memperbarui aktivitas yang ada beserta anggota tim dan dokumen wajibnya."""
     db_aktivitas = db.query(models.Aktivitas).options(
-        joinedload(models.Aktivitas.daftar_dokumen_wajib)
+        joinedload(models.Aktivitas.daftar_dokumen_wajib),
+        joinedload(models.Aktivitas.users)
     ).filter(models.Aktivitas.id == aktivitas_id).first()
     if db_aktivitas is None:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
 
-    # Ambil semua data dari Pydantic model sebagai dictionary snake_case
+    # Logika untuk mengambil ID user Kepala Kantor
+    kepala_kantor_id = None
+    JABATAN_KEPALA_KANTOR_ID = 1 # Ganti dengan ID jabatan Kepala Kantor yang sesuai
+    kepala_kantor = db.query(models.User).filter(
+        models.User.jabatan_id == JABATAN_KEPALA_KANTOR_ID
+    ).first()
+    if kepala_kantor:
+        kepala_kantor_id = kepala_kantor.id
+
+    # 1. Update data utama aktivitas
     update_data = aktivitas.dict(exclude_unset=True)
-    
-    # Hapus field yang tidak ada di model Aktivitas
-    update_data.pop('daftar_dokumen_wajib', None)
+    anggota_aktivitas_ids = update_data.pop('anggota_aktivitas_ids', [])
+    daftar_dokumen_wajib = update_data.pop('daftar_dokumen_wajib', [])
+    melibatkan_kepala_kantor = update_data.pop('melibatkan_kepala_kantor', False)
     update_data.pop('use_date_range', None)
     update_data.pop('use_time', None)
     
     # Update field-field utama
     for key, value in update_data.items():
         setattr(db_aktivitas, key, value)
+    
+    # 2. Update anggota tim yang terlibat (Hubungan Many-to-Many)
+    final_anggota_ids = set(anggota_aktivitas_ids)
+    if melibatkan_kepala_kantor and kepala_kantor_id:
+        final_anggota_ids.add(kepala_kantor_id)
 
-    # Logika khusus untuk tanggal selesai jika tidak menggunakan rentang
-    if not aktivitas.use_date_range:
-        db_aktivitas.tanggal_selesai = None
+    existing_members = {user.id for user in db_aktivitas.users}
+    
+    members_to_add = final_anggota_ids - existing_members
+    members_to_remove = existing_members - final_anggota_ids
 
-    # Logika khusus untuk jam jika tidak digunakan
-    if not aktivitas.use_time:
-        db_aktivitas.jam_mulai = None
-        db_aktivitas.jam_selesai = None
+    # Hapus anggota yang tidak dipilih lagi
+    if members_to_remove:
+        members_to_remove_obj = db.query(models.User).filter(models.User.id.in_(members_to_remove)).all()
+        for user in members_to_remove_obj:
+            if user in db_aktivitas.users:
+                db_aktivitas.users.remove(user)
 
-    # Logika untuk update checklist (sudah benar)
+    # Tambahkan anggota baru
+    if members_to_add:
+        members_to_add_obj = db.query(models.User).filter(models.User.id.in_(members_to_add)).all()
+        for user in members_to_add_obj:
+            db_aktivitas.users.append(user)
+    
+    # 3. Update daftar dokumen wajib
     existing_doc_names = {doc.nama_dokumen for doc in db_aktivitas.daftar_dokumen_wajib}
-    incoming_doc_names = set(aktivitas.daftar_dokumen_wajib)
+    incoming_doc_names = set(daftar_dokumen_wajib)
     
     docs_to_delete = [doc for doc in db_aktivitas.daftar_dokumen_wajib if doc.nama_dokumen not in incoming_doc_names]
     for doc in docs_to_delete:
@@ -616,7 +693,7 @@ def update_aktivitas(
     for doc_name in docs_to_add:
         new_doc = models.DaftarDokumen(nama_dokumen=doc_name, aktivitas_id=aktivitas_id)
         db.add(new_doc)
-        
+            
     db.commit()
     db.refresh(db_aktivitas)
     return db_aktivitas
@@ -626,17 +703,16 @@ def update_aktivitas(
 def delete_aktivitas(aktivitas_id: int, db: Session = Depends(database.get_db)):
     # 1. Cari aktivitas yang akan dihapus
     aktivitas_query = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id)
-    # Jika tidak ditemukan, kirim error 404
     if aktivitas_query.first() is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aktivitas tidak ditemukan")
         
-    # 2. Hapus data dari database
+    # 2. Hapus data dari database. 
+    # SQLAlchemy akan mengurus penghapusan di tabel perantara dan dokumen terkait
     aktivitas_query.delete(synchronize_session=False)
     
     # 3. Simpan perubahan
     db.commit()
     
-    # 4. Kembalikan respons tanpa konten (standar untuk DELETE)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # --- ENDPOINT UPLOAD DOKUMEN ---
@@ -647,46 +723,58 @@ def create_dokumen_untuk_aktivitas(
     checklist_item_id: Optional[int] = Form(None),
     file: UploadFile = File(...),
     db: Session = Depends(database.get_db)
-    ):
-    # Cek aktivitas (tidak berubah)
-    aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
-    if not aktivitas:
-        raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+):
+    # Inisialisasi variabel di luar blok try untuk mencegah UnboundLocalError
+    file_location = None
 
-    target_dir = get_document_path(db, aktivitas_id=aktivitas_id)
-
-    target_dir = get_document_path(db, aktivitas_id=aktivitas_id)
-    file_extension = file.filename.split(".")[-1]
-    unique_filename = f"{uuid.uuid4()}.{file_extension}"
-    file_location = os.path.join(target_dir, unique_filename)
     try:
+        # Cek aktivitas
+        aktivitas = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
+        if not aktivitas:
+            raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+
+        # Panggil fungsi pembantu untuk mendapatkan direktori
+        target_dir = get_document_path(db, aktivitas_id=aktivitas_id)
+        
+        file_extension = file.filename.split(".")[-1]
+        unique_filename = f"{uuid.uuid4()}.{file_extension}"
+        file_location = os.path.join(target_dir, unique_filename)
+
         with open(file_location, "wb+") as file_object:
             shutil.copyfileobj(file.file, file_object)
-    finally:
-        file.file.close()
+        
+        db_dokumen = models.Dokumen(
+            aktivitas_id=aktivitas_id,
+            keterangan=keterangan,
+            tipe='FILE',
+            path_atau_url=file_location,
+            nama_file_asli=file.filename,
+            tipe_file_mime=file.content_type
+        )
+        db.add(db_dokumen)
+        db.commit()
+        db.refresh(db_dokumen)
 
-    db_dokumen = models.Dokumen(
-        aktivitas_id=aktivitas_id,
-        keterangan=keterangan,
-        tipe='FILE',
-        path_atau_url=file_location,
-        nama_file_asli=file.filename,
-        tipe_file_mime=file.content_type
-    )
-    db.add(db_dokumen)
-    db.commit()
-    db.refresh(db_dokumen)
+        if checklist_item_id:
+            db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == checklist_item_id).first()
+            if db_checklist_item:
+                # Perhatikan perubahan ini, karena Anda menggunakan schema Pydantic,
+                # field `status` di model `DaftarDokumen` mungkin tidak ada, gunakan `status_pengecekan`
+                db_checklist_item.status_pengecekan = True 
+                db_checklist_item.dokumen_id = db_dokumen.id
+                db.commit()
+        
+        return db_dokumen
 
-    # 2. JIKA ada checklist_item_id, BARU perbarui item checklist
-    if checklist_item_id:
-        db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == checklist_item_id).first()
-        if db_checklist_item:
-            db_checklist_item.status = 'Selesai'
-            # Sekarang kita bisa pastikan db_dokumen.id sudah memiliki nilai
-            db_checklist_item.dokumen_id = db_dokumen.id
-            db.commit() # Commit perubahan pada item checklist
-    
-    return db_dokumen
+    except HTTPException as e:
+        # Menangkap error HTTP dan meneruskannya
+        raise e
+    except Exception as e:
+        # Menangkap error umum, mencetak ke konsol server, dan menghapus file jika sudah dibuat
+        print(f"Error saat mengunggah dokumen di aktivitas {aktivitas_id}: {e}")
+        if file_location and os.path.exists(file_location):
+            os.remove(file_location)
+        raise HTTPException(status_code=500, detail=f"Terjadi kesalahan di server: {str(e)}")
 
 # --- ENDPOINT MENAMBAHKAN LINK ---
 @app.post("/api/aktivitas/{aktivitas_id}/link", response_model=schemas.Dokumen)
