@@ -78,6 +78,15 @@ const isLoading = ref(false);
 const searchQuery = ref('');
 let debounceTimer = null;
 
+const updateViewMode = () => {
+  // Atur mode tampilan berdasarkan lebar layar
+  if (window.innerWidth < 768) {
+    viewMode.value = 'card';
+  } else {
+    viewMode.value = 'table';
+  }
+};
+
 const fetchProjects = async (query = '') => {
   isLoading.value = true;
   try {
@@ -115,6 +124,8 @@ watch(searchQuery, (newQuery) => {
 });
 
 onMounted(() => {
+  updateViewMode();
+  window.addEventListener('resize', updateViewMode);
   fetchProjects();
   fetchTeams();
 });

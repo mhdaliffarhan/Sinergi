@@ -7,7 +7,6 @@
       </div>
       <div v-else-if="aktivitas">
         
-        <!-- RESPONSIVE: Header diubah menjadi kolom di layar kecil (flex-col) -->
         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div class="md:mb-0">
             <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.team.namaTim}}</p>
@@ -15,7 +14,6 @@
             <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
           </div>
           
-          <!-- RESPONSIVE: Tombol tindakan dibuat lebar penuh di layar kecil/medium -->
           <div class="flex-shrink-0 w-full md:w-auto">
             <Menu as="div" class="relative inline-block text-left w-full md:w-auto">
               <div>
@@ -28,12 +26,11 @@
               </div>
 
               <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
-                <!-- RESPONSIVE: Posisi menu disesuaikan agar tidak keluar layar di mobile -->
                 <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:outline-none">
                   <div class="py-1"> 
                     <MenuItem v-slot="{ active }">
                       <button @click="handleDownloadAll" :class="[active ? 'bg-green-100 dark:bg-green-700' : '', 'text-green-700 dark:text-green-200 block w-full text-left px-4 py-2 text-sm']">
-                        Unduh Semua File    
+                        Unduh Semua File     
                       </button>
                     </MenuItem>
                     <MenuItem v-slot="{ active }" v-if="isKetuaTim">
@@ -52,6 +49,7 @@
             </Menu>
           </div>
         </div>
+
         <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
           <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700">
             <span class="text-lg">🗓️</span>
@@ -62,7 +60,32 @@
             <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ formattedWaktuPelaksanaan.waktu }}</span>
           </div>
         </div>
-
+        
+        <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Anggota Aktivitas</h2>
+          <div v-if="aktivitas.users && aktivitas.users.length > 0" class="flex flex-wrap -space-x-2">
+            <div 
+              v-for="user in aktivitas.users" 
+              :key="user.id" 
+              class="relative h-10 w-10 rounded-full flex items-center justify-center text-xs font-semibold text-gray-600 dark:text-gray-300 ring-2 ring-white dark:ring-gray-800 transition duration-150 transform hover:scale-110 hover:z-10"
+              :title="user.namaLengkap"
+            >
+              <img v-if="user.fotoProfilUrl"
+                :src="getProfileUrl(user.fotoProfilUrl)"
+                alt="Profil"
+                class="h-full w-full rounded-full object-cover"
+              />
+              <div v-else
+                class="h-full w-full rounded-full flex items-center justify-center text-white"
+                :style="{ backgroundColor: getSoftRandomColor(user.id) }"
+              >
+                {{ getInitials(user.namaLengkap) }}
+              </div>
+            </div>
+          </div>
+          <p v-else class="text-sm text-gray-500 dark:text-gray-400">Tidak ada anggota tim yang terlibat.</p>
+        </div>
+        
         <hr class="my-6 border-gray-200 dark:border-gray-700">
 
         <div class="mb-6">
@@ -87,8 +110,7 @@
         </div>
 
         <div>
-           <!-- RESPONSIVE: Header section diubah menjadi kolom di layar kecil -->
-          <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+           <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
             <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
           </div>
@@ -109,7 +131,6 @@
       </div>
     </div>
     
-    <!-- MODALS (Tidak perlu diubah) -->
     <FilePreviewModal :show="isPreviewModalOpen" :file-url="fileToPreview.url" :file-name="fileToPreview.name" :file-type="fileToPreview.type" @close="closePreviewModal" />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
       <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
@@ -188,6 +209,41 @@ const isKetuaTim = computed(() => {
 const unfulfilledChecklistItems = computed(() =>
   aktivitas.value?.daftarDokumenWajib?.filter(item => item.dokumenId == null) || []
 );
+
+
+// --- FUNGSI HELPER ---
+// Fungsi untuk mendapatkan inisial dari nama lengkap
+const getInitials = (namaLengkap) => {
+  if (!namaLengkap) return '';
+  const parts = namaLengkap.split(' ').filter(p => p.length > 0);
+  if (parts.length === 1) {
+    return parts[0].charAt(0).toUpperCase();
+  }
+  return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+};
+
+// Fungsi untuk mendapatkan warna latar belakang acak yang lembut
+const getSoftRandomColor = (userId) => {
+  const colors = [
+    '#E57373', '#F06292', '#BA68C8', '#9575CD', '#7986CB', '#64B5F6',
+    '#4FC3F7', '#4DD0E1', '#4DB6AC', '#81C784', '#AED581', '#FF8A65',
+    '#FFB74D', '#FFD54F', '#FFF176', '#FFEB3B', '#DCE775', '#A2D729',
+    '#4FC3F7', '#64B5F6'
+  ];
+  const index = userId % colors.length;
+  return colors[index];
+};
+
+// Helper untuk normalisasi URL foto profil
+const getProfileUrl = (path) => {
+  if (!path) return null;
+  // Jika path dimulai dengan './', tambahkan base URL.
+  // Ini penting agar gambar bisa diakses dari backend.
+  if (path.startsWith('./')) {
+    return `http://127.0.0.1:8000/${path.replace('./', '')}`;
+  }
+  return path;
+};
 
 const otherDocuments = computed(() => {
   if (!aktivitas.value?.dokumen) return [];

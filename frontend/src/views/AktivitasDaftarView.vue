@@ -87,7 +87,7 @@ const fetchAktivitas = async (query = '') => {
       params: { q: query }
     });
     aktivitas.value = response.data;
-    console.log(response.data);
+    console.log("data aktivitas: ", response.data);
   } catch (error) {
     toast.error("Gagal memuat data aktivitas.");
     console.error("Gagal mengambil data aktivitas:", error);

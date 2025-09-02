@@ -699,7 +699,6 @@ def get_aktivitas_by_id(aktivitas_id: int, db: Session = Depends(database.get_db
     return db_aktivitas
 
 # --- ENDPOINT MENGUPDATE AKTIVITAS ---
-# --- ENDPOINT MENGUPDATE AKTIVITAS ---
 @app.put("/api/aktivitas/{aktivitas_id}", response_model=schemas.Aktivitas)
 def update_aktivitas(
     aktivitas_id: int, 

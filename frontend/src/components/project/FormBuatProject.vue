@@ -47,7 +47,7 @@
           <option disabled value="">Pilih Project Leader</option>
           <option 
             v-for="user in teamMembers" 
-            :key="user.id" 
+            :key="user.id"  
             :value="user.id"
           >
             {{ user.namaLengkap }} ({{ user.username }})
@@ -125,7 +125,31 @@ watch(() => form.teamId, async (newTeamId) => {
       console.error("Gagal mengambil data anggota tim:", error);
     }
   }
-}, { immediate: true });
+});
+
+// --- TAMBAHAN: Watcher untuk mengisi form saat initialData berubah ---
+watch(() => props.initialData, (newData) => {
+    // Reset form ke nilai default
+    form.namaProject = '';
+    form.teamId = '';
+    form.projectLeaderId = null;
+    teamMembers.value = [];
+
+    if (newData) {
+        form.namaProject = newData.namaProject || '';
+        form.teamId = newData.teamId || '';
+        
+        // PENTING: Perlu memuat anggota tim terlebih dahulu sebelum mengisi projectLeaderId
+        // Ini memastikan opsi projectLeaderId sudah tersedia di dropdown saat diisi
+        // Ini akan memicu watcher form.teamId di atas
+        if (newData.teamId) {
+            axios.get(`http://127.0.0.1:8000/api/teams/${newData.teamId}`).then(response => {
+                teamMembers.value = response.data.users;
+                form.projectLeaderId = newData.projectLeaderId || null;
+            });
+        }
+    }
+}, { immediate: true }); // 'immediate: true' akan menjalankan watcher saat komponen pertama kali dimuat
 
 const validate = () => {
   Object.keys(errors).forEach(key => errors[key] = null);

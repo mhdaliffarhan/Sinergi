@@ -87,6 +87,7 @@ class UserInAktivitas(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
+    foto_profil_url: Optional[str] = None
 
 # Skema untuk Team yang akan digunakan di dalam User
 class TeamInUser(CamelModel):

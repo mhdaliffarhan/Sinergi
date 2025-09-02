@@ -11,7 +11,6 @@
 <script setup>
 import KartuAktivitas from '@/components/aktivitas/KartuAktivitas.vue';
 
-// Bagian script ini sudah benar dan tidak perlu diubah.
 defineProps({
   aktivitas: {
     type: Array, 

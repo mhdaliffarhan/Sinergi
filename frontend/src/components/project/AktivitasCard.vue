@@ -1,5 +1,5 @@
 <template>
-  <router-link :to="`/aktivitas/${aktivitas.id}`" class="block w-full h-full">
+  <router-link :to="`/aktivitas/detail/${aktivitas.id}`" class="block w-full h-full">
     <div class="flex flex-col h-full p-4 bg-white dark:bg-gray-700 rounded-lg shadow-sm border border-gray-200 dark:border-gray-600 transition-transform transform hover:scale-[1.01] hover:shadow-md">
       
       <div class="flex items-start gap-3 flex-grow">

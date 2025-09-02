@@ -9,6 +9,9 @@
           <th scope="col" class="px-6 py-3 text-center">
             Tim
           </th>
+          <th scope="col" class="px-6 py-3 text-center">
+            Project
+          </th>
           <th scope="col" class="px-6 py-3">
             Jadwal Pelaksanaan
           </th>
@@ -27,6 +30,11 @@
             <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full text-white"
               :style="{ backgroundColor: item.team.warna || '#3b82f6' }">
               {{ item.team?.namaTim || '-' }}
+            </span>
+          </td>
+          <td class="px-6 py-4 text-center">
+            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-600">
+              {{ item.project?.namaProject || '-' }}
             </span>
           </td>
           <td class="px-6 py-4 text-center">
