@@ -1,3 +1,4 @@
+from __future__ import annotations
 from pydantic import BaseModel, model_validator, field_validator, Field, ConfigDict
 from typing import Optional, Any, List
 from datetime import date, time, datetime
@@ -10,9 +11,9 @@ def to_camel(snake_str: str) -> str:
 # Model dasar yang akan melakukan konversi otomatis untuk SEMUA skema
 class CamelModel(BaseModel):
     model_config = ConfigDict(
-        alias_generator=to_camel, 
-        populate_by_name=True, 
-        from_attributes=True     
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True
     )
 
 # ===================================================================
@@ -58,30 +59,34 @@ class DaftarDokumen(CamelModel):
 # ===================================================================
 # SKEMA UNTUK USER
 # ===================================================================
+# User schemas untuk relasi nested
 class UserInTeam(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
-    
+
 class UserInProject(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
-    
-class ProjectInUser(CamelModel):
-    id: int
-    nama_project: str
 
+# Skema untuk Team yang akan digunakan di dalam User
 class TeamInUser(CamelModel):
     id: int
     nama_tim: str
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
-    
+
+# Skema untuk Project yang akan digunakan di dalam User
+class ProjectInUser(CamelModel):
+    id: int
+    nama_project: str
+
+# Base dan Create skema untuk User
 class UserBase(CamelModel):
     username: str
     nama_lengkap: Optional[str] = None
-    foto_profil_url : Optional[str] = None
+    foto_profil_url: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -98,22 +103,25 @@ class UserCreate(UserBase):
         if not any(c.isdigit() for c in password):
             raise ValueError("Password harus mengandung angka")
         return self
-    
+
+# Skema utama untuk menampilkan User secara penuh
 class User(UserBase):
     id: int
     is_active: bool
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
     teams: List[TeamInUser] = []
+    created_projects: List[ProjectInUser] = []
 
+# Skema khusus untuk endpoint "me" yang menampilkan informasi lebih detail
 class UserWithTeams(UserBase):
     id: int
     is_active: bool
     sistem_role: SistemRole
     jabatan: Optional[Jabatan] = None
-    teams: List[TeamInUser] = []
+    teams: List[TeamInUser] = [] # Menggunakan TeamInUser untuk menghindari referensi silang yang kompleks
     is_ketua_tim: bool = False
-    ketua_tim_aktif: List[Any] = [] # Menggunakan Any untuk menghindari circular reference
+    ketua_tim_aktif: List[TeamInUser] = [] # Ganti Any dengan TeamInUser untuk tipenya
     created_projects: List[ProjectInUser] = []
 
 class UserUpdate(CamelModel):
@@ -162,6 +170,7 @@ class TeamCreate(TeamBase):
 class TeamUpdate(TeamBase):
     pass
 
+# Skema utama untuk menampilkan Team secara penuh
 class Team(TeamBase):
     id: int
     ketua_tim: Optional[UserInTeam] = None
@@ -186,12 +195,12 @@ class ProjectUpdate(CamelModel):
     nama_project: Optional[str] = None
     team_id: Optional[int] = None
     project_leader_id: Optional[int] = None
-    
+
 class Project(ProjectBase):
     id: int
     project_leader: Optional[UserInProject] = None
     team: Optional[TeamInProject] = None
-    dokumen: List[Dokumen] = [] # BARIS INI BENAR HANYA ADA DI SINI
+    dokumen: List[Dokumen] = []
 
 class ProjectPage(CamelModel):
     total: int
@@ -211,13 +220,14 @@ class AktivitasBase(CamelModel):
     jam_selesai: Optional[time] = None
     team_id: Optional[int] = None
     creator_user_id: Optional[int] = None
+    project_id: Optional[int] = None
 
 class StatusPengecekanUpdate(CamelModel):
     status_pengecekan: bool
-    
+
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
-    
+
     @model_validator(mode='before')
     @classmethod
     def check_required_fields(cls, data: Any) -> Any:
@@ -235,7 +245,8 @@ class Aktivitas(AktivitasBase):
     id: int
     dibuat_pada: datetime
     creator: Optional[UserInTeam] = None
-    team: Optional[Team] = None
+    team: Optional[TeamInProject] = None # Menggunakan TeamInProject untuk menghindari circular reference
+    project: Optional[ProjectInUser] = None # Menggunakan ProjectInUser untuk menghindari circular reference
     dokumen: List[Dokumen] = []
     daftar_dokumen_wajib: List[DaftarDokumen] = []
 
