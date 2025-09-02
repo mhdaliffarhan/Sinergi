@@ -71,7 +71,6 @@ class DaftarDokumen(CamelModel):
 # ===================================================================
 # SKEMA UNTUK USER
 # ===================================================================
-# Skema untuk relasi nested
 class UserInTeam(CamelModel):
     id: int
     username: str

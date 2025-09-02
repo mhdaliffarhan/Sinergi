@@ -279,8 +279,28 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
 
 @app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)):
-    team_data = team.dict(by_alias=False)
-    db_team = models.Team(**team_data)
+    db_team = models.Team(
+        nama_tim=team.nama_tim,
+        valid_from=team.valid_from,
+        valid_until=team.valid_until,
+        ketua_tim_id=team.ketua_tim_id,
+        warna=team.warna
+    )
+
+    # Pastikan ketua_tim_id ada dan bukan null
+    if team.ketua_tim_id:
+        ketua_tim_user = db.query(models.User).filter(models.User.id == team.ketua_tim_id).first()
+        if not ketua_tim_user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Ketua Tim tidak ditemukan."
+            )
+        
+        # Tambahkan objek User ke relationship 'users' tim
+        db_team.users.append(ketua_tim_user)
+        # SQLAlchemy akan secara otomatis membuat entri di user_team_link
+
+    # 3. Simpan Tim ke database
     db.add(db_team)
     db.commit()
     db.refresh(db_team)
@@ -318,17 +338,37 @@ def get_active_teams(
     )
     return teams
 
-@app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True,
+         dependencies=[Depends(security.require_role(["Superadmin"]))])
 def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Depends(database.get_db)):
     db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
     if not db_team:
         raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
+
     update_data = team_update.dict(exclude_unset=True, by_alias=False)
+
+    # Jika ada ketua_tim_id baru
+    if "ketua_tim_id" in update_data and update_data["ketua_tim_id"] is not None:
+        new_ketua_id = update_data["ketua_tim_id"]
+
+        # cek apakah user sudah ada di anggota tim via relasi
+        ketua_sudah_anggota = any(u.id == new_ketua_id for u in db_team.users)
+
+        # kalau belum → tambahkan
+        if not ketua_sudah_anggota:
+            ketua_user = db.query(models.User).filter(models.User.id == new_ketua_id).first()
+            if not ketua_user:
+                raise HTTPException(status_code=404, detail="Ketua Tim tidak ditemukan.")
+            db_team.users.append(ketua_user)
+
+    # Update field lain
     for key, value in update_data.items():
         setattr(db_team, key, value)
+
     db.commit()
     db.refresh(db_team)
     return db_team
+
 
 @app.delete("/api/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def delete_team(team_id: int, db: Session = Depends(database.get_db)):
