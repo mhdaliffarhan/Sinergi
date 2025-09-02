@@ -17,7 +17,7 @@
       <div
         v-if="uiStore.isSidebarOpen && isMobile"
         @click="uiStore.closeSidebar"
-        class="fixed inset-0 z-20 md:hidden"
+        class="fixed inset-0 bg-transparent z-20 md:hidden"
       ></div>
     </div>
   </div>

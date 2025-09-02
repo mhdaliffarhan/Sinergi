@@ -21,6 +21,7 @@ class Team(Base):
     valid_until = Column(DATE, nullable=True)
     ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
+    
     users = relationship("User", secondary=user_team_link, back_populates="teams")
     aktivitas = relationship("Aktivitas", back_populates="team")
     projects = relationship("Project", back_populates="team")

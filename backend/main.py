@@ -372,15 +372,24 @@ def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Dep
 
 @app.delete("/api/teams/{team_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(security.require_role(["Superadmin"]))])
 def delete_team(team_id: int, db: Session = Depends(database.get_db)):
-    """Menghapus tim (hanya Superadmin)."""
+    """Menghapus tim (hanya Superadmin), tetapi hanya jika tidak memiliki aktivitas terkait."""
     
-    team_query = db.query(models.Team).filter(models.Team.id == team_id)
-    db_team = team_query.first()
+    # 1. Cari tim yang akan dihapus
+    db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
 
     if db_team is None:
         raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
-        
-    team_query.delete(synchronize_session=False)
+
+    # 2. Cek apakah tim memiliki aktivitas terkait
+    if db_team.aktivitas:
+        raise HTTPException(
+            status_code=400,
+            detail="Gagal menghapus tim. Tim ini masih memiliki aktivitas terkait."
+        )
+
+    # 3. Jika tidak ada aktivitas terkait, hapus tim
+    # Anda harus menghapus data di tabel perantara secara manual (jika ada) sebelum menghapus tim utama
+    db.delete(db_team)
     db.commit()
     
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -477,14 +486,43 @@ def get_all_projects(
 
 @app.get("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True)
 def get_project_by_id(project_id: int, db: Session = Depends(database.get_db)):
-    """Mendapatkan detail proyek berdasarkan ID."""
+    """Mendapatkan detail proyek dan daftar aktivitas aktif yang relevan."""
+    
+    # Ambil data proyek secara utuh
     db_project = db.query(models.Project).options(
         joinedload(models.Project.project_leader),
         joinedload(models.Project.team),
         joinedload(models.Project.dokumen)
     ).filter(models.Project.id == project_id).first()
+    
     if not db_project:
         raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
+
+    # Filter dan muat hanya aktivitas yang sedang aktif
+    today = date.today()
+    active_aktivitas = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.daftar_dokumen_wajib)
+    ).with_parent(db_project).filter(
+        or_( # Gunakan OR untuk dua kondisi
+            # Kondisi 1: Aktivitas dengan rentang tanggal
+            and_(
+                models.Aktivitas.tanggal_selesai.isnot(None),
+                models.Aktivitas.tanggal_mulai <= today,
+                models.Aktivitas.tanggal_selesai >= today
+            ),
+            # Kondisi 2: Aktivitas satu hari tanpa jam
+            and_(
+                models.Aktivitas.tanggal_selesai.is_(None),
+                models.Aktivitas.jam_mulai.is_(None),
+                models.Aktivitas.jam_selesai.is_(None),
+                models.Aktivitas.tanggal_mulai == today
+            )
+        )
+    ).all()
+
+    # Tambahkan daftar aktivitas yang sudah difilter ke objek proyek
+    db_project.aktivitas = active_aktivitas
+
     return db_project
 
 @app.put("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])

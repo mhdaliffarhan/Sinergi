@@ -215,7 +215,7 @@ const deleteTeam = async (teamId) => {
     toast.success("Tim berhasil dihapus.");
     await fetchData();
   } catch (error) {
-    toast.error("Gagal menghapus tim.");
+    toast.error(error.response?.data?.detail || error.message);
   }
 };
 </script>

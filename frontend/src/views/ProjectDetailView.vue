@@ -49,10 +49,39 @@
             </Menu>
           </div>
         </div>
-        <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700">
-            <span class="text-lg">🗓️</span>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ formattedTanggalBuat }}</span>
+
+        <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
+          <div v-if="project.aktivitas && project.aktivitas.length > 0" class="relative">
+            <swiper
+              :slides-per-view="1"
+              :space-between="16"
+              :pagination="{ clickable: true }"
+              :navigation="true"
+              :breakpoints="{
+                640: { // Ukuran layar sm: dan di atas
+                  slidesPerView: 2,
+                  spaceBetween: 20,
+                },
+                768: { // Ukuran layar md: dan di atas
+                  slidesPerView: 3,
+                  spaceBetween: 30,
+                },
+                1024: { // Ukuran layar lg: dan di atas
+                  slidesPerView: 4,
+                  spaceBetween: 40,
+                },
+              }"
+              class="my-swiper"
+            >
+              <swiper-slide v-for="aktivitas in project.aktivitas" :key="aktivitas.id">
+                <AktivitasCard :aktivitas="aktivitas" />
+              </swiper-slide>
+            </swiper>
+          </div>
+          <div v-else class="text-center p-4">
+            <p class="text-sm font-medium text-gray-500 dark:text-gray-400">
+              Tidak ada aktivitas yang sedang berlangsung untuk Project ini.
+            </p>
           </div>
         </div>
 
@@ -103,6 +132,9 @@ import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue';
 import { useAuthStore } from '@/stores/auth';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { Swiper, SwiperSlide } from 'swiper/vue';
+import 'swiper/css';
+
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import DokumenItem from '@/components/aktivitas/DokumenItem.vue';
@@ -113,6 +145,7 @@ import FilePreviewModal from '@/components/FilePreviewModal.vue';
 
 // Pastikan komponen ini sudah Anda buat
 import FormBuatProject from '@/components/project/FormBuatProject.vue'; 
+import AktivitasCard from '@/components/project/AktivitasCard.vue';
 
 // --- DEKLARASI STATE & INISIALISASI ---
 const route = useRoute();
@@ -145,12 +178,6 @@ const isKetuaTim = computed(() => {
   return team.ketuaTimId === user?.id;
 });
 
-const formattedTanggalBuat = computed(() => {
-  if (!project.value || !project.value.tanggalDibuat) return 'Tanggal belum ditentukan';
-  const options = { day: 'numeric', month: 'long', year: 'numeric' };
-  const tglDibuat = new Date(project.value.tanggalDibuat);
-  return tglDibuat.toLocaleDateString('id-ID', options);
-});
 
 // --- FUNGSI UTAMA ---
 const fetchDetailProject = async () => {
@@ -159,7 +186,7 @@ const fetchDetailProject = async () => {
     const response = await axios.get(`http://127.0.0.1:8000/api/projects/${projectId}`);
     project.value = response.data;
     breadcrumbItems.value[2].text = project.value?.namaProject ?? 'Detail Project';
-    console.log("Detail Projecy : ", response.data);
+    console.log("Detail Project : ", response.data);
   } catch (error) {
     const message = error.response?.data?.message || "Gagal memuat detail Project.";
     toast.error(message);
@@ -205,6 +232,7 @@ const handleUpdateProject = async (formData) => {
 const confirmDeleteProject = () => { 
   if (window.confirm("Yakin ingin hapus Project ini? Semua data terkait akan ikut terhapus.")) deleteProject(); 
 };
+
 const deleteProject = async () => {
   try {
     await axios.delete(`http://127.0.0.1:8000/api/projects/${projectId}`);
@@ -242,11 +270,16 @@ const handleLinkSubmit = async (formData) => {
 };
 
 // --- Logika untuk Unggah File (via Dropzone) ---
-const closeFileModal = () => { isFileModalOpen.value = false; fileToUpload.value = null; };
+const closeFileModal = () => { 
+  isFileModalOpen.value = false; 
+  fileToUpload.value = null; 
+};
+
 const handleFileReadyForUpload = (file) => {
   fileToUpload.value = file;
   isFileModalOpen.value = true;
 };
+
 const handleFileUploadSubmit = async (formData) => {
   const data = new FormData();
   data.append('file', formData.file);

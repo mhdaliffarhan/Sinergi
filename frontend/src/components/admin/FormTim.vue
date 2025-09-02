@@ -20,7 +20,7 @@
         <select 
           id="ketua-tim" 
           v-model="form.ketuaTimId"
-          class="mt-1 block w-full px-3 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+          class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
         >
           <option :value="null">-- Tidak ada ketua tim --</option>
           <option v-for="user in userList" :key="user.id" :value="user.id">

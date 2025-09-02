@@ -245,12 +245,17 @@ class ProjectUpdate(CamelModel):
     team_id: Optional[int] = None
     project_leader_id: Optional[int] = None
 
+class ProjectAktivitas(CamelModel):
+    id: int
+    nama_aktivitas: str
+    daftar_dokumen_wajib: List[DaftarDokumen] = []
 
 class Project(ProjectBase):
     id: int
     project_leader: Optional[UserInProject] = None
     team: Optional[TeamInProject] = None
     dokumen: List[Dokumen] = []
+    aktivitas: List[ProjectAktivitas] = []
 
 
 class ProjectPage(CamelModel):
