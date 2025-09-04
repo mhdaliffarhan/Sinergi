@@ -60,7 +60,8 @@ const menuItems = computed(() => {
     { 
       label: 'Aktivitas', to: '/aktivitas/daftar', icon: '✅'
     },
-    { label: 'Kalender Tim', to: '/kalender', icon: '📅' },
+    { label: 'Kalender Tim', to: '/kalender-tim', icon: '📅' },
+    { label: 'Kalender Pegawai', to: '/kalender-pegawai', icon: '📅' },
   ];
   if (authStore.isAdmin) {
     baseMenu.push({

@@ -396,7 +396,7 @@ def delete_team(team_id: int, db: Session = Depends(database.get_db)):
 
 # --- ENDPOINT BARU UNTUK MANAJEMEN ANGGOTA TIM ---
 
-@app.get("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+@app.get("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True)
 def get_team_details(team_id: int, db: Session = Depends(database.get_db)):
     """Mengambil detail satu tim, termasuk daftar anggotanya."""
     
