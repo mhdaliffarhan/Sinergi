@@ -751,26 +751,25 @@ def update_aktivitas(
 # --- ENDPOINT MENGHAPUS AKTIVITAS ---
 @app.delete("/api/aktivitas/{aktivitas_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_aktivitas(aktivitas_id: int, db: Session = Depends(database.get_db)):
+    aktivitas_to_delete = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id).first()
 
-    aktivitas_query = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id)
-    aktivitas_to_delete = aktivitas_query.first()
-    
     if aktivitas_to_delete is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aktivitas tidak ditemukan")
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aktivitas tidak ditemukan.")
 
-    if len(aktivitas_to_delete.dokumen) > 0:
+    if aktivitas_to_delete.dokumen:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,  # Menggunakan 409 Conflict untuk menunjukkan konflik data
-            detail="Tidak dapat menghapus aktivitas karena masih terdapat dokumen terkait. Silakan hapus dokumen terlebih dahulu."
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tidak dapat menghapus aktivitas karena masih terdapat dokumen terkait. Harap hapus semua dokumen terkait terlebih dahulu."
         )
-    
-    # 2. Hapus entri di tabel perantara 'anggota_aktivitas' yang terkait
+
+    # Hapus semua entri di tabel perantara 'anggota_aktivitas' secara manual
     db.query(models.anggota_aktivitas_link).filter(models.anggota_aktivitas_link.c.aktivitas_id == aktivitas_id).delete(synchronize_session=False)
 
-    # 3. Hapus aktivitas utama
-    aktivitas_query.delete(synchronize_session=False)
+    # Hapus semua entri di tabel 'daftar_dokumen' secara manual
+    db.query(models.DaftarDokumen).filter(models.DaftarDokumen.aktivitas_id == aktivitas_id).delete(synchronize_session=False)
 
-    # 4. Simpan perubahan
+    # Hapus aktivitas itu sendiri
+    db.delete(aktivitas_to_delete)
     db.commit()
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -1050,13 +1049,6 @@ def update_status_pengecekan(
           raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Item checklist tidak terhubung dengan tim yang valid"
-        )
-
-    team_lead_id = db_item.aktivitas.team.ketua_tim_id
-    if current_user.id != team_lead_id:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Hanya ketua tim yang dapat mengubah status pengecekan"
         )
 
     # 3. Jika validasi berhasil, perbarui status

@@ -36,7 +36,7 @@ class Project(Base):
 
     project_leader = relationship("User", back_populates="created_projects")
     team = relationship("Team", back_populates="projects")
-    aktivitas = relationship("Aktivitas", back_populates="project", cascade="all, delete-orphan")
+    aktivitas = relationship("Aktivitas", back_populates="project")
     dokumen = relationship("Dokumen", back_populates="project")
 
 class Aktivitas(Base):

@@ -39,7 +39,7 @@
           </button>
         </div>
         
-        <button v-if="authStore.user?.isKetuaTim" @click="openModal" class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
+        <button  @click="openModal" class="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors">
           <span>+</span>
           <span>Buat Baru</span>
         </button>
@@ -121,7 +121,7 @@ const fetchTeams = async () => {
         }));
       }
     }
-    console.log("Anggota tim per tim:", teamMembers.value);
+    console.log("Team list :", authStore.user);
   } catch (error) {
     toast.error("Gagal memuat daftar tim.");
     console.error("Gagal mengambil data tim:", error);
@@ -137,7 +137,7 @@ const fetchProjects = async () => {
       teamId: project.teamId,
       projectLeaderId: project.projectLeaderId
     }));
-    console.log(projectList.value);
+    console.log("Project : ", projectList.value);
   } catch (error) {
     toast.error("Gagal memuat data project");
     console.error("Gagal memuat data project: ", error);

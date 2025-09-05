@@ -211,10 +211,16 @@ const props = defineProps({
 });
   
 const daftarTim = computed(() => {
-  if (!props.teamList) return [];
-  if (!authStore.user?.ketuaTimAktif) return [];
+  if (!props.teamList) {
+    return [];
+  }
+  if (!authStore.user?.teams) {
+    return [];
+  }
+  const userTeamIds = authStore.user.teams.map(team => team.id);
+  
   return props.teamList.filter(tim => 
-    authStore.user.ketuaTimAktif.some(k => k.id === tim.id)
+    userTeamIds.includes(tim.id)
   );
 });
 
@@ -315,7 +321,7 @@ watch(() => props.initialData, (newData) => {
 watch(() => form.teamId, (newTeamId, oldTeamId) => {
   if (newTeamId !== oldTeamId) {
     form.projectId = '';
-    selectedMembers.value = []; // Tambahan: Kosongkan pilihan anggota saat tim berubah
+    selectedMembers.value = [];
     isDropdownOpen.value = false;
     searchQuery.value = '';
   }

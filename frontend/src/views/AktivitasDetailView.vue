@@ -33,12 +33,12 @@
                         Unduh Semua File     
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="isKetuaTim">
+                    <MenuItem v-slot="{ active }" v-if="isAnggotaTim">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Aktivitas
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="isKetuaTim">
+                    <MenuItem v-slot="{ active }" v-if="isAnggotaTim">
                       <button @click="confirmDeleteActivity" :class="[active ? 'bg-red-100 dark:bg-red-800' : '', 'text-red-700 dark:text-red-300 block w-full text-left px-4 py-2 text-sm']">
                         Hapus Aktivitas
                       </button>
@@ -98,6 +98,8 @@
                 :key="doc.id"
                 :item="doc"
                 :isKetuaTim="isKetuaTim"
+                :isAnggotaTim="isAnggotaTim"
+                :isProjectLeader="isProjectLeader"
                 @unggah="handleUploadRequest"
                 @hapus="confirmDeleteDokumen"
                 @preview="handlePreviewRequest"
@@ -112,18 +114,22 @@
         <div>
            <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
-            <button @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
+            <button  v-if="isAnggotaTim" @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
           </div>
           <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <DokumenItem 
               v-for="doc in otherDocuments" 
               :key="doc.id" 
               :dokumen="doc" 
+              :isAnggotaTim="isAnggotaTim"
               @hapus="confirmDeleteDokumen"
               @preview="handlePreviewRequest" 
               class="p-3" />
           </div>
-          <DropzoneUploader @file-selected="handleFileReadyForUpload" class="mt-4" />
+          <div v-else>
+            <p class="text-sm text-center text-gray-500 dark:text-gray-400 py-4">Tidak ada Link & Dokumen Lainnya untuk aktivitas ini.</p>
+          </div>
+          <DropzoneUploader  v-if="isAnggotaTim" @file-selected="handleFileReadyForUpload" class="mt-4" />
         </div>
       </div>
       <div v-else>
@@ -178,6 +184,7 @@ const isLoading = ref(true);
 const breadcrumbItems = ref([
   { text: 'Dashboard Aktivitas', to: '/aktivitas/dashboard' },
   { text: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
+  { text: 'Project', to: ''},
   { text: 'Detail Aktivitas' }
 ]);
 
@@ -197,13 +204,31 @@ const teamList = ref([]);
 const teamMembers = ref([]);
 const projectList = ref([]);
 
+const isProjectLeader = computed (() => {
+  const projectLeaderId = aktivitas.value?.project?.projectLeaderId;
+  console.log("Project Leader ID : ", projectLeaderId);
+  if (projectLeaderId && projectLeaderId === user?.id) {
+    return true;
+  }
+  return false;
+});
 
 const isKetuaTim = computed(() => {
   const team = aktivitas.value?.team;
-  console.log("team : ", team);
   if (!team) return false
   return team.ketuaTimId === user?.id
-})
+});
+
+const isAnggotaTim = computed(() => {
+  const aktivitasTeamId = aktivitas.value?.team?.id;
+  if (!aktivitasTeamId) {
+    return false;
+  }
+  if (!user || !user.teams || user.teams.length === 0) {
+    return false;
+  }
+  return user.teams.some(team => team.id === aktivitasTeamId);
+});
 
 // --- COMPUTED PROPERTIES ---
 const unfulfilledChecklistItems = computed(() =>
@@ -280,7 +305,11 @@ const fetchDetailAktivitas = async () => {
     const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
     aktivitas.value = response.data;
     console.log("Aktivitas : ", aktivitas.value);
-    breadcrumbItems.value[2].text = aktivitas.value?.namaAktivitas ?? 'Detail Aktivitas';
+    breadcrumbItems.value[2] = {
+        text: aktivitas.value.project.namaProject,
+        to: `/project/detail/${aktivitas.value.project.id}`
+      };
+    breadcrumbItems.value[3].text = aktivitas.value?.namaAktivitas ?? 'Detail Aktivitas';
   } catch (error) {
     const message = error.response?.data?.message || "Gagal memuat detail aktivitas.";
     toast.error(message);
@@ -306,6 +335,7 @@ const fetchTeams = async () => {
         }));
       }
     }
+    console.log("Team members : ", teamMembers.value);
   } catch (error) {
     toast.error("Gagal memuat daftar tim.");
     console.error("Gagal mengambil data tim:", error);
@@ -361,7 +391,7 @@ const deleteActivity = async () => {
     router.push('/aktivitas/daftar');
   } catch (error) { 
     if (error.response && error.response.status === 409) {
-        // Tampilkan pesan spesifik dari backend
+
         toast.error(error.response.data.detail);
     } else {
         // Tampilkan pesan error umum
