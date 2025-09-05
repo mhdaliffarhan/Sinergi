@@ -33,7 +33,7 @@
                         Unduh Semua File    
                       </button>
                     </MenuItem>
-                    <MenuItem v-slot="{ active }" v-if="isKetuaTim">
+                    <MenuItem v-slot="{ active }" v-if="isKetuaTim || isProjectLeader">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Project
                       </button>
@@ -114,7 +114,7 @@
     
     <FilePreviewModal :show="isPreviewModalOpen" :file-url="fileToPreview.url" :file-name="fileToPreview.name" :file-type="fileToPreview.type" @close="closePreviewModal" />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Project">
-      <FormBuatProject :initial-data="project" @close="closeEditModal" @submit="handleUpdateProject" :team-list="teamList"/>
+      <FormProject tipe="Simpan" :initial-data="project" @close="closeEditModal" @submit="handleUpdateProject" :team-list="teamList"/>
     </ModalWrapper>
     <ModalWrapper :show="isLinkModalOpen" @close="closeLinkModal" title="Tambah Link Baru">
       <FormTambahLink @close="closeLinkModal" @submit="handleLinkSubmit" />
@@ -144,8 +144,9 @@ import FormKonfirmasiDokumen from '@/components/aktivitas/FormKonfirmasiDokumen.
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 
 // Pastikan komponen ini sudah Anda buat
-import FormBuatProject from '@/components/project/FormBuatProject.vue'; 
+import FormProject from '@/components/project/FormProject.vue'; 
 import AktivitasCard from '@/components/project/AktivitasCard.vue';
+import { id } from 'date-fns/locale';
 
 // --- DEKLARASI STATE & INISIALISASI ---
 const route = useRoute();
@@ -170,6 +171,12 @@ const isPreviewModalOpen = ref(false);
 const fileToPreview = ref({ url: '', name: '', type: '' });
 const fileToUpload = ref(null);
 const teamList = ref([]);
+
+const isProjectLeader = (() => {
+  const ProjectLeader_id = project.value?.ProjectLeader_id;
+  if (!ProjectLeader_id) return false;
+  return ProjectLeader_id === user?.id;
+});
 
 // --- COMPUTED PROPERTIES ---
 const isKetuaTim = computed(() => {

@@ -39,6 +39,7 @@
             v-model="form.validFrom"
             class="mt-1 block w-full px-3 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
           />
+         <p v-if="errors.validFrom" class="mt-1 text-xs text-red-500">{{ errors.validFrom }}</p>
         </div>
         <div>
           <label for="valid-until" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Periode Aktif Selesai</label>
@@ -141,8 +142,18 @@ const validate = () => {
     isValid = false;
   }
   
+  if (!form.validFrom){
+    errors.validFrom = 'Periode Aktif Mulai tidak boleh kosong';
+    isValid = false;
+  }
+
+  if (!form.validUntil){
+    errors.validUntil = 'Periode Aktif Selesai tidak boleh kosong';
+    isValid = false;
+  }
+
   if (form.validFrom && form.validUntil && form.validUntil < form.validFrom) {
-    errors.validUntil = 'Tanggal selesai tidak boleh sebelum tanggal mulai.';
+    errors.validUntil = 'Periode Aktif selesai tidak boleh sebelum Periode Aktif mulai.';
     isValid = false;
   }
   

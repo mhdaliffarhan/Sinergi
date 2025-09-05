@@ -133,7 +133,7 @@
     
     <FilePreviewModal :show="isPreviewModalOpen" :file-url="fileToPreview.url" :file-name="fileToPreview.name" :file-type="fileToPreview.type" @close="closePreviewModal" />
     <ModalWrapper :show="isEditModalOpen" @close="closeEditModal" title="Edit Aktivitas">
-      <FormBuatAktivitas :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
+      <FormAktivitas tipe="Simpan" :initial-data="aktivitas" @close="closeEditModal" @submit="handleUpdateActivity" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
     </ModalWrapper>
     <ModalWrapper :show="isLinkModalOpen" @close="closeLinkModal" title="Tambah Link Baru">
       <FormTambahLink @close="closeLinkModal" @submit="handleLinkSubmit" />
@@ -156,7 +156,7 @@ import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import Breadcrumbs from '@/components/Breadcrumbs.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
-import FormBuatAktivitas from '@/components/aktivitas/FormBuatAktivitas.vue';
+import FormAktivitas from '@/components/aktivitas/FormAktivitas.vue';
 import DokumenItem from '@/components/aktivitas/DokumenItem.vue';
 import FormTambahLink from '@/components/aktivitas/FormTambahLink.vue';
 import ChecklistItem from '@/components/aktivitas/ChecklistItem.vue';
@@ -359,7 +359,15 @@ const deleteActivity = async () => {
     await axios.delete(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
     toast.success("Aktivitas berhasil dihapus.");
     router.push('/aktivitas/daftar');
-  } catch (error) { toast.error("Gagal menghapus aktivitas."); }
+  } catch (error) { 
+    if (error.response && error.response.status === 409) {
+        // Tampilkan pesan spesifik dari backend
+        toast.error(error.response.data.detail);
+    } else {
+        // Tampilkan pesan error umum
+        toast.error("Gagal menghapus aktivitas. Silakan coba lagi.");
+    }
+   }
 };
 
 // --- Logika untuk Dokumen (Umum) ---

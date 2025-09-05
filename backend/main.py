@@ -1,6 +1,5 @@
-
 from fastapi import (FastAPI, Depends, HTTPException, status, Response, File,
-                     UploadFile, Form)
+                     UploadFile, Form, Query)
 from fastapi.responses import JSONResponse, FileResponse, StreamingResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import or_, desc, and_
@@ -8,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from typing import List,  Optional
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
 
 import models, database, schemas, security
 import os, shutil, uuid, io, zipfile
@@ -192,9 +191,8 @@ def update_password(
 # ===================================================================
 # ENDPOINT MANAJEMEN ADMIN
 # ===================================================================
-@app.post("/api/users", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.post("/api/users", response_model=schemas.User, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)):
-    """Membuat pengguna baru (hanya Superadmin)."""
     db_user = security.get_user(db, username=user.username)
     if db_user:
         raise HTTPException(status_code=400, detail="Username sudah terdaftar")
@@ -277,7 +275,7 @@ def delete_user(user_id: int, db: Session = Depends(database.get_db)):
     # Kembalikan respons tanpa konten
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
-@app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.post("/api/teams", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def create_team(team: schemas.TeamCreate, db: Session = Depends(database.get_db)):
     db_team = models.Team(
         nama_tim=team.nama_tim,
@@ -339,7 +337,7 @@ def get_active_teams(
     return teams
 
 @app.put("/api/teams/{team_id}", response_model=schemas.Team, response_model_by_alias=True,
-         dependencies=[Depends(security.require_role(["Superadmin"]))])
+          dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def update_team(team_id: int, team_update: schemas.TeamUpdate, db: Session = Depends(database.get_db)):
     db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
     if not db_team:
@@ -412,7 +410,7 @@ def get_team_details(team_id: int, db: Session = Depends(database.get_db)):
     
     return db_team
 
-@app.post("/api/teams/{team_id}/members", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.post("/api/teams/{team_id}/members", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin" ]))])
 def add_team_member(team_id: int, user_id: int, db: Session = Depends(database.get_db)):
     """Menambahkan seorang pengguna ke dalam tim."""
     db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
@@ -432,7 +430,7 @@ def add_team_member(team_id: int, user_id: int, db: Session = Depends(database.g
 
     return db_team
 
-@app.delete("/api/teams/{team_id}/members/{user_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin"]))])
+@app.delete("/api/teams/{team_id}/members/{user_id}", response_model=schemas.Team, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
 def remove_team_member(team_id: int, user_id: int, db: Session = Depends(database.get_db)):
     """Mengeluarkan seorang pengguna dari tim."""
     db_team = db.query(models.Team).filter(models.Team.id == team_id).first()
@@ -525,9 +523,8 @@ def get_project_by_id(project_id: int, db: Session = Depends(database.get_db)):
 
     return db_project
 
-@app.put("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+@app.put("/api/projects/{project_id}", response_model=schemas.Project, response_model_by_alias=True)
 def update_project(project_id: int, project_update: schemas.ProjectUpdate, db: Session = Depends(database.get_db)):
-    """Memperbarui proyek (hanya Superadmin atau Admin)."""
     db_project = db.query(models.Project).filter(models.Project.id == project_id).first()
     if not db_project:
         raise HTTPException(status_code=404, detail="Proyek tidak ditemukan")
@@ -569,9 +566,9 @@ def get_all_jabatan(db: Session = Depends(database.get_db)):
 
 @app.get("/api/aktivitas", response_model=List[schemas.Aktivitas])
 def get_all_aktivitas(
-        db: Session = Depends(database.get_db), 
-        q: Optional[str] = None,
-        current_user: models.User = Depends(security.get_current_user)
+    db: Session = Depends(database.get_db), 
+    q: Optional[str] = None,
+    current_user: models.User = Depends(security.get_current_user)
 ):
     # Query dasar dengan eager loading dokumen
     query = db.query(models.Aktivitas).options(
@@ -608,22 +605,6 @@ def create_aktivitas(
     print("--- Memulai proses pembuatan aktivitas ---")
     print(f"Data payload yang diterima: {aktivitas.dict()}")
 
-    # Logika untuk mengambil ID user Kepala Kantor
-    kepala_kantor_id = None
-    JABATAN_KEPALA_KANTOR_ID = 1 
-
-    try:
-        kepala_kantor = db.query(models.User).filter(
-            models.User.jabatan_id == JABATAN_KEPALA_KANTOR_ID
-        ).first()
-        if kepala_kantor:
-            kepala_kantor_id = kepala_kantor.id
-            print(f"Kepala Kantor ditemukan. ID: {kepala_kantor_id}")
-        else:
-            print("Kepala Kantor tidak ditemukan.")
-    except Exception as e:
-        print(f"Error mencari Kepala Kantor: {e}")
-
     # Ekstrak data yang akan digunakan untuk membuat instance model Aktivitas
     aktivitas_data = {
         "nama_aktivitas": aktivitas.nama_aktivitas,
@@ -633,7 +614,8 @@ def create_aktivitas(
         "jam_mulai": aktivitas.jam_mulai,
         "jam_selesai": aktivitas.jam_selesai,
         "team_id": aktivitas.team_id,
-        "project_id": aktivitas.project_id
+        "project_id": aktivitas.project_id,
+        "melibatkan_kepala": aktivitas.melibatkan_kepala
     }
     
     # Set creator_user_id dari pengguna yang sedang login
@@ -644,15 +626,6 @@ def create_aktivitas(
 
     # Tambahkan anggota tim ke objek aktivitas
     anggota_aktivitas_ids = list(set(aktivitas.anggota_aktivitas_ids)) # Gunakan set untuk menghapus duplikat
-    
-    # Tambahkan Kepala Kantor jika checkbox dicentang dan belum ada di daftar
-    if aktivitas.melibatkan_kepala_kantor and kepala_kantor_id and kepala_kantor_id not in anggota_aktivitas_ids:
-        anggota_aktivitas_ids.append(kepala_kantor_id)
-        print("Checkbox dicentang. ID Kepala Kantor ditambahkan ke daftar anggota.")
-    elif aktivitas.melibatkan_kepala_kantor and not kepala_kantor_id:
-        print("Checkbox dicentang, tapi Kepala Kantor tidak ditemukan di database.")
-    elif not aktivitas.melibatkan_kepala_kantor:
-        print("Checkbox Kepala Kantor tidak dicentang.")
     
     print(f"Daftar final ID anggota yang akan ditambahkan: {anggota_aktivitas_ids}")
 
@@ -778,18 +751,28 @@ def update_aktivitas(
 # --- ENDPOINT MENGHAPUS AKTIVITAS ---
 @app.delete("/api/aktivitas/{aktivitas_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_aktivitas(aktivitas_id: int, db: Session = Depends(database.get_db)):
-    # 1. Cari aktivitas yang akan dihapus
+
     aktivitas_query = db.query(models.Aktivitas).filter(models.Aktivitas.id == aktivitas_id)
-    if aktivitas_query.first() is None:
+    aktivitas_to_delete = aktivitas_query.first()
+    
+    if aktivitas_to_delete is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Aktivitas tidak ditemukan")
-        
-    # 2. Hapus data dari database. 
-    # SQLAlchemy akan mengurus penghapusan di tabel perantara dan dokumen terkait
+
+    if len(aktivitas_to_delete.dokumen) > 0:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,  # Menggunakan 409 Conflict untuk menunjukkan konflik data
+            detail="Tidak dapat menghapus aktivitas karena masih terdapat dokumen terkait. Silakan hapus dokumen terlebih dahulu."
+        )
+    
+    # 2. Hapus entri di tabel perantara 'anggota_aktivitas' yang terkait
+    db.query(models.anggota_aktivitas_link).filter(models.anggota_aktivitas_link.c.aktivitas_id == aktivitas_id).delete(synchronize_session=False)
+
+    # 3. Hapus aktivitas utama
     aktivitas_query.delete(synchronize_session=False)
-    
-    # 3. Simpan perubahan
+
+    # 4. Simpan perubahan
     db.commit()
-    
+
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 # --- ENDPOINT UPLOAD DOKUMEN ---
@@ -856,8 +839,6 @@ def create_dokumen_untuk_aktivitas(
 # --- ENDPOINT MENAMBAHKAN LINK ---
 @app.post("/api/aktivitas/{aktivitas_id}/link", response_model=schemas.Dokumen)
 def add_link_untuk_aktivitas(
-
-
     aktivitas_id: int,
     link_data: schemas.DokumenCreate, # Kita akan gunakan kembali skema ini
     db: Session = Depends(database.get_db)
@@ -1066,7 +1047,7 @@ def update_status_pengecekan(
     # 2. Validasi Keamanan: Pastikan pengguna adalah ketua tim
     # Pastikan ada aktivitas dan tim yang tertaut sebelum memeriksa
     if not db_item.aktivitas or not db_item.aktivitas.team:
-         raise HTTPException(
+          raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, 
             detail="Item checklist tidak terhubung dengan tim yang valid"
         )
@@ -1153,3 +1134,142 @@ def download_all_dokumen(
         media_type="application/x-zip-compressed",
         headers={'Content-Disposition': f'attachment; filename="{zip_filename}"'}
     )
+
+# ===================================================================
+# ENDPOINT BARU UNTUK KALENDER TIM
+# ===================================================================
+
+@app.get("/api/kalender/events", response_model=List[schemas.Aktivitas])
+def get_calendar_events(
+    db: Session = Depends(database.get_db),
+    team_ids: Optional[str] = Query(None, description="Daftar ID tim yang dipisahkan oleh koma."),
+):
+    """
+    Mengambil daftar semua aktivitas yang relevan untuk tampilan kalender.
+    Jika team_ids diberikan, akan memfilter berdasarkan anggota tim.
+    """
+    query = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.users),
+        joinedload(models.Aktivitas.team)
+    )
+
+    if team_ids:
+        try:
+            team_id_list = [int(id_str) for id_str in team_ids.split(',') if id_str.isdigit()]
+            if team_id_list:
+                # Mengambil ID pengguna dari tim yang dipilih
+                user_ids_in_teams = db.query(models.user_team_link.c.user_id).filter(
+                    models.user_team_link.c.team_id.in_(team_id_list)
+                ).all()
+                unique_user_ids = {user_id for (user_id,) in user_ids_in_teams}
+                
+                # Menemukan aktivitas yang terkait dengan anggota tim tersebut
+                query = query.join(models.anggota_aktivitas_link).filter(
+                    models.anggota_aktivitas_link.c.user_id.in_(unique_user_ids)
+                ).distinct()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format team_ids tidak valid.")
+    
+    return query.all()
+
+
+@app.get("/api/kalender/timeline", response_model=List[dict])
+def get_timeline_data(
+    db: Session = Depends(database.get_db),
+    team_ids: Optional[str] = Query(None, description="Daftar ID tim yang dipisahkan oleh koma."),
+    start_date: date = Query(..., description="Tanggal mulai rentang timeline (YYYY-MM-DD)."),
+    end_date: date = Query(..., description="Tanggal selesai rentang timeline (YYYY-MM-DD).")
+):
+    """
+    Mengambil data timeline yang sudah diolah dari backend, termasuk penugasan lane.
+    """
+    query = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.users).joinedload(models.User.jabatan),
+        joinedload(models.Aktivitas.team)
+    ).filter(
+        or_(
+            and_(
+                models.Aktivitas.tanggal_mulai <= end_date,
+                models.Aktivitas.tanggal_selesai >= start_date
+            ),
+            and_(
+                models.Aktivitas.tanggal_mulai.between(start_date, end_date),
+                models.Aktivitas.tanggal_selesai.is_(None)
+            )
+        )
+    ).order_by(models.Aktivitas.tanggal_mulai)
+
+    if team_ids:
+        try:
+            team_id_list = [int(id_str) for id_str in team_ids.split(',') if id_str.isdigit()]
+            if team_id_list:
+                user_ids_in_teams = db.query(models.user_team_link.c.user_id).filter(
+                    models.user_team_link.c.team_id.in_(team_id_list)
+                ).all()
+                unique_user_ids = {user_id for (user_id,) in user_ids_in_teams}
+                query = query.join(models.anggota_aktivitas_link).filter(
+                    models.anggota_aktivitas_link.c.user_id.in_(unique_user_ids)
+                ).distinct()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format team_ids tidak valid.")
+
+    aktivitas = query.all()
+    
+    # Kumpulkan daftar pegawai unik
+    pegawai_map = {}
+    for a in aktivitas:
+        for user in a.users:
+            if user.id not in pegawai_map:
+                pegawai_map[user.id] = {
+                    "id": user.id,
+                    "namaLengkap": user.nama_lengkap,
+                    "aktivitas": []
+                }
+    
+    # Tetapkan lane dan tambahkan ke setiap pegawai
+    for pegawai_id, pegawai_data in pegawai_map.items():
+        pegawai_events = []
+        for a in aktivitas:
+            if any(u.id == pegawai_id for u in a.users):
+                pegawai_events.append({
+                    "id": a.id,
+                    "title": a.nama_aktivitas,
+                    "start": a.tanggal_mulai,
+                    "end": a.tanggal_selesai if a.tanggal_selesai else a.tanggal_mulai,
+                    "start_time": str(a.jam_mulai) if a.jam_mulai else None,
+                    "end_time": str(a.jam_selesai) if a.jam_selesai else None,
+                    "backgroundColor": a.team.warna if a.team else "#2563eb",
+                    "tanggalMulai": a.tanggal_mulai,
+                    "tanggalSelesai": a.tanggal_selesai,
+                })
+
+        # Logika penugasan lane yang dipindahkan dari frontend
+        sorted_events = sorted(pegawai_events, key=lambda e: e['start'])
+        lanes = []
+        for event in sorted_events:
+            assigned_lane = -1
+            for i, lane in enumerate(lanes):
+                can_fit = True
+                for placed_event in lane:
+                    start1 = event['start']
+                    end1 = event['end']
+                    start2 = placed_event['start']
+                    end2 = placed_event['end']
+                    # Logika tumpang tindih
+                    if max(start1, start2) <= min(end1, end2):
+                        can_fit = False
+                        break
+                if can_fit:
+                    assigned_lane = i
+                    break
+            
+            if assigned_lane == -1:
+                lanes.append([event])
+                event['lane'] = len(lanes)
+            else:
+                lanes[assigned_lane].append(event)
+                event['lane'] = assigned_lane + 1
+
+        pegawai_data['aktivitas'] = sorted_events
+
+    return list(pegawai_map.values())

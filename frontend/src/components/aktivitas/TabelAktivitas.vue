@@ -3,11 +3,8 @@
     <table class="w-full text-sm text-left text-gray-500 dark:text-gray-400">
       <thead class="text-xs text-gray-700 uppercase bg-gray-50 dark:bg-gray-700 dark:text-gray-400">
         <tr>
-          <th scope="col" class="px-6 py-3">
+          <th scope="col" class="px-6 py-3 w-1/2">
             Nama Aktivitas
-          </th>
-          <th scope="col" class="px-6 py-3 text-center">
-            Tim
           </th>
           <th scope="col" class="px-6 py-3 text-center">
             Project
@@ -23,20 +20,26 @@
           :key="item.id" 
           @click="goToDetail(item.id)"
           class="border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
-          <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
-            {{ item.namaAktivitas }}
-          </th>
-          <td class="px-6 py-4 text-center">
-            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full text-white"
-              :style="{ backgroundColor: item.team.warna || '#3b82f6' }">
-              {{ item.team?.namaTim || '-' }}
-            </span>
+          <td scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap dark:text-white">
+            <div class="flex flex-col gap-1">
+              
+              <span class="inline-flex items-center w-fit px-2 py-1 text-xs font-medium rounded-full text-white"
+                :style="{ backgroundColor: item.team.warna || '#3b82f6' }">
+                {{ item.team?.namaTim || '-' }}
+              </span>
+              <span class="font-medium">
+                {{ item.namaAktivitas }}
+              </span>
+            </div>
           </td>
-          <td class="px-6 py-4 text-center">
-            <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-orange-100 text-orange-600">
-              {{ item.project?.namaProject || '-' }}
-            </span>
-          </td>
+         <td class="px-6 py-4 text-center">
+          <span 
+            class="font-bold text-xs px-2 py-1 rounded-full"
+            :style="{ color: item.team.warna || '#3b82f6' }"
+          >
+            {{ item.project?.namaProject || '-' }}
+          </span>
+        </td>
           <td class="px-6 py-4 text-center">
             <div class="flex flex-col">
               <span class="flex items-center gap-2">
@@ -89,8 +92,11 @@ const formatJadwal = (item) => {
     tanggalTampil = tglMulai.toLocaleDateString('id-ID', options);
   }
 
+  // Mengubah format jamMulai dan jamSelesai
   if (item.jamMulai) {
-    waktuTampil = `${item.jamMulai} - ${item.jamSelesai} WITA`;
+    const jamMulai = item.jamMulai.substring(0, 5); // Ambil jam dan menit saja
+    const jamSelesai = item.jamSelesai ? item.jamSelesai.substring(0, 5) : null;
+    waktuTampil = `${jamMulai} - ${jamSelesai} WITA`;
   }
 
   return { tanggal: tanggalTampil, waktu: waktuTampil };

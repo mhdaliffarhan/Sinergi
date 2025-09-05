@@ -33,7 +33,7 @@
       <div class="grid grid-cols-2 gap-4">
         <div>
           <h4 class="font-semibold mb-2 dark:text-white">Anggota Tim</h4>
-          <div class="border rounded-md h-96 overflow-y-auto p-2 space-y-2 dark:border-gray-600">
+          <div class="border border-gray-300 dark:border-gray-600 rounded-md h-96 overflow-y-auto p-2 space-y-2 dark:border-gray-600">
             <div v-for="member in sortedTeamMembers" :key="member.id" class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
               <span class="text-sm">{{ member.namaLengkap }}</span>
               <button @click="removeMember(member)" class="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 rounded-full">
@@ -56,7 +56,7 @@
               class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-200 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
             />
           </div>
-          <div class="border rounded-md h-[22.5rem] overflow-y-auto p-2 space-y-2 dark:border-gray-600">
+          <div class="border border-gray-300 dark:border-gray-600 rounded-md h-[22.5rem] overflow-y-auto p-2 space-y-2 dark:border-gray-600">
             <div v-for="user in availableUsers" :key="user.id" class="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded cursor-pointer">
               <span class="text-sm dark:text-gray-200">{{ user.namaLengkap }}</span>
               <button @click="addMember(user)" class="p-1 text-green-500 hover:bg-green-100 dark:hover:bg-green-900/50 rounded-full">

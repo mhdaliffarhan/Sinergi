@@ -253,6 +253,7 @@ class ProjectAktivitas(CamelModel):
     nama_aktivitas: str
     daftar_dokumen_wajib: List[DaftarDokumen] = []
 
+
 class Project(ProjectBase):
     id: int
     project_leader: Optional[UserInProject] = None
@@ -281,6 +282,7 @@ class AktivitasBase(CamelModel):
     team_id: Optional[int] = None
     creator_user_id: Optional[int] = None
     project_id: Optional[int] = None
+    melibatkan_kepala: Optional[bool] = None
 
 
 class StatusPengecekanUpdate(CamelModel):
@@ -290,7 +292,6 @@ class StatusPengecekanUpdate(CamelModel):
 class AktivitasCreate(AktivitasBase):
     daftar_dokumen_wajib: List[str] = []
     anggota_aktivitas_ids: List[int] = []
-    melibatkan_kepala_kantor: bool = False
 
 
     @model_validator(mode='before')

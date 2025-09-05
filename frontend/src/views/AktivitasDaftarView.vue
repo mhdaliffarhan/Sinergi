@@ -52,7 +52,7 @@
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Buat Aktivitas Baru">
-      <FormBuatAktivitas @close="closeModal" @submit="handleActivitySubmit" :project="aktivitas.projects" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
+      <FormAktivitas @close="closeModal" @submit="handleActivitySubmit" tipe="Buat" :team-list="teamList" :project-list="projectList" :team-members="teamMembers"/>
     </ModalWrapper>
   </div>
 </template>
@@ -65,7 +65,7 @@ import { useAuthStore } from '@/stores/auth';
 
 import DaftarAktivitas from '@/components/aktivitas/DaftarAktivitas.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
-import FormBuatAktivitas from '@/components/aktivitas/FormBuatAktivitas.vue';
+import FormAktivitas from '@/components/aktivitas/FormAktivitas.vue';
 import TabelAktivitas from '@/components/aktivitas/TabelAktivitas.vue';
 
 const authStore = useAuthStore();
@@ -79,6 +79,14 @@ const viewMode = ref('table');
 const isLoading = ref(false);
 const searchQuery = ref('');
 let debounceTimer = null;
+
+const updateViewMode = () => {
+  if (window.innerWidth < 768) {
+    viewMode.value = 'card';
+  } else {
+    viewMode.value = 'table';
+  }
+};
 
 const fetchAktivitas = async (query = '') => {
    isLoading.value = true;
@@ -137,15 +145,15 @@ const fetchProjects = async () => {
 }
 
 watch(searchQuery, (newQuery) => {
-  // Hapus timer yang ada setiap kali user mengetik
   clearTimeout(debounceTimer);
-  // Buat timer baru. Jika user berhenti mengetik selama 300ms, baru jalankan fetch.
   debounceTimer = setTimeout(() => {
     fetchAktivitas(newQuery);
   }, 300);
 });
 
 onMounted(() => {
+  updateViewMode();
+  window.addEventListener('resize', updateViewMode);
   fetchAktivitas();
   fetchTeams();
   fetchProjects();

@@ -52,7 +52,7 @@
     </div>
 
     <ModalWrapper :show="isModalOpen" @close="closeModal" title="Buat Project Baru">
-      <FormBuatProject @close="closeModal" @submit="handleProjectSubmit" :team-list="teamList" />
+      <FormProject tipe="Buat" @close="closeModal" @submit="handleProjectSubmit" :team-list="teamList" />
     </ModalWrapper>
   </div>
 </template>
@@ -65,7 +65,7 @@ import { useAuthStore } from '@/stores/auth';
 
 import DaftarProject from '@/components/project/DaftarProject.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
-import FormBuatProject from '@/components/project/FormBuatProject.vue';
+import FormProject from '@/components/project/FormProject.vue';
 import TabelProject from '@/components/project/TabelProject.vue';
 
 const authStore = useAuthStore();
@@ -79,7 +79,6 @@ const searchQuery = ref('');
 let debounceTimer = null;
 
 const updateViewMode = () => {
-  // Atur mode tampilan berdasarkan lebar layar
   if (window.innerWidth < 768) {
     viewMode.value = 'card';
   } else {
@@ -109,6 +108,7 @@ const fetchTeams = async () => {
       id: team.id,
       namaTim: team.namaTim 
     }));
+    console.log(authStore.user);
   } catch (error) {
     toast.error("Gagal memuat daftar tim.");
     console.error("Gagal mengambil data tim:", error);

@@ -17,8 +17,8 @@ class Team(Base):
     __tablename__ = "teams"
     id = Column(Integer, primary_key=True, index=True)
     nama_tim = Column(String, unique=False, nullable=False)
-    valid_from = Column(DATE, nullable=True)
-    valid_until = Column(DATE, nullable=True)
+    valid_from = Column(DATE, nullable=False)
+    valid_until = Column(DATE, nullable=False)
     ketua_tim_id = Column(Integer, ForeignKey("users.id"), nullable=True)
     ketua_tim = relationship("User", foreign_keys=[ketua_tim_id])
     
@@ -52,6 +52,7 @@ class Aktivitas(Base):
     creator_user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     team_id = Column(Integer, ForeignKey("teams.id"), nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id"), nullable=True)
+    melibatkan_kepala = Column(Boolean, default=False, nullable=False)
 
     creator = relationship("User", back_populates="created_aktivitas")
     team = relationship("Team", back_populates="aktivitas")
@@ -92,7 +93,7 @@ class User(Base):
     username = Column(String, unique=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     nama_lengkap = Column(String)
-    is_active = Column(Boolean, default=True)
+    is_active = Column(Boolean, default=False)
     sistem_role_id = Column(Integer, ForeignKey("sistem_roles.id"))
     jabatan_id = Column(Integer, ForeignKey("jabatan.id"))
     foto_profil_url = Column(Text, nullable=True) 

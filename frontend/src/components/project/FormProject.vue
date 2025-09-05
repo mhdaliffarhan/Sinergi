@@ -63,7 +63,7 @@
         Batal
       </button>
       <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none">
-        Buat Project
+        {{ tipe }} Project
       </button>
     </div>
   </form>
@@ -83,7 +83,8 @@ const props = defineProps({
     type: Object,
     default: null
   },
-  teamList: { type: Array, required: true }
+  teamList: { type: Array, required: true },
+  tipe : { type: String, required: true}
 });
   
 const daftarTim = computed(() => {

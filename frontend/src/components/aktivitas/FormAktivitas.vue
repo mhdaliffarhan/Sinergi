@@ -47,14 +47,14 @@
         <p v-if="errors.teamId" class="mt-1 text-xs text-red-500">{{ errors.teamId }}</p>
       </div>
       <div v-if="form.teamId">
-        <label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Proyek</label>
+        <label for="project" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Project</label>
         <select
           id="project"
           v-model="form.projectId"
           :class="{ 'border-red-500': errors.projectId }"
           class="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm dark:bg-gray-700 dark:text-white"
         >
-          <option disabled value="">Pilih proyek</option>
+          <option disabled value="">Pilih project</option>
           <option
             v-for="project in filteredProjects"
             :key="project.id"
@@ -97,8 +97,8 @@
 
       <hr class="border-gray-200 dark:border-gray-700">
       <div>
-        <label for="melibatkanKepalaKantor" class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
-          <input type="checkbox" id="melibatkanKepalaKantor" v-model="form.melibatkanKepalaKantor" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+        <label for="melibatkanKepala" class="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer">
+          <input type="checkbox" id="melibatkanKepala" v-model="form.melibatkanKepala" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
           <span>Libatkan Kepala Kantor dalam aktivitas ini</span>
         </label>
       </div>
@@ -188,7 +188,7 @@
         Batal
       </button>
       <button type="submit" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none">
-        Simpan Aktivitas
+        {{ tipe }} Aktivitas
       </button>
     </div>
   </form>
@@ -206,7 +206,8 @@ const props = defineProps({
   },
   teamList: { type: Array, required: true },
   projectList: { type: Array, required: true },
-  teamMembers: { type: Object, required: true }
+  teamMembers: { type: Object, required: true },
+  tipe: { type: String, required: true } 
 });
   
 const daftarTim = computed(() => {
@@ -265,7 +266,7 @@ const form = reactive({
   tanggalSelesai: '',
   jamMulai: '',
   jamSelesai: '',
-  melibatkanKepalaKantor: false
+  melibatkanKepala: false
 });
 
 const namaDokumenBaru = ref('');
@@ -296,6 +297,7 @@ watch(() => props.initialData, (newData) => {
     form.deskripsi = newData.deskripsi || '';
     form.teamId = newData.teamId || '';
     form.projectId = newData.projectId || '';
+    form.melibatkanKepala = newData.melibatkanKepala || false;
 
     const isRange = !!newData.tanggalSelesai;
     form.useDateRange = isRange;

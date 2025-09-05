@@ -18,6 +18,10 @@ export const useAuthStore = defineStore('auth', () => {
     return role === 'Superadmin' || role === 'Admin';
   });
 
+  const isSuperAdmin = computed(() => {
+    const role = user.value?.sistemRole?.namaRole;
+    return role === 'Superadmin';
+  });
   function setToken(newToken) {
     localStorage.setItem('token', newToken);
     token.value = newToken;
@@ -75,5 +79,5 @@ export const useAuthStore = defineStore('auth', () => {
     toast.success('Anda berhasil Logout!');
   }
 
-  return { token, user, isAuthenticated, userRole, isAdmin, login, fetchUser, logout };
+  return { token, user, isAuthenticated, userRole, isAdmin, isSuperAdmin, login, fetchUser, logout };
 });
