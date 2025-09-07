@@ -145,7 +145,7 @@ import FilePreviewModal from '@/components/FilePreviewModal.vue';
 
 // Pastikan komponen ini sudah Anda buat
 import FormProject from '@/components/project/FormProject.vue'; 
-import AktivitasCard from '@/components/project/AktivitasCard.vue';
+import AktivitasCard from '@/components/aktivitas/AktivitasCard.vue';
 import { id } from 'date-fns/locale';
 
 // --- DEKLARASI STATE & INISIALISASI ---

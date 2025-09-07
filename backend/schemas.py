@@ -75,6 +75,8 @@ class UserInTeam(CamelModel):
     id: int
     username: str
     nama_lengkap: Optional[str] = None
+    foto_profil_url: Optional[str] = None
+    jabatan: Optional[Jabatan] = None
 
 
 class UserInProject(CamelModel):
@@ -201,14 +203,36 @@ class TeamInProject(CamelModel):
     ketua_tim_id: Optional[int] = None
     warna: Optional[str] = None
 
+class ProjectInTeam(CamelModel):
+    id: int
+    nama_project: str
+    project_leader: Optional[UserInProject] = None
+    aktivitas: List[AktivitasInTeam] = []
+
+class AktivitasInTeam(CamelModel):
+    id: int
+    nama_aktivitas: str
+    deskripsi: Optional[str] = None
+    tanggal_mulai: Optional[date] = None
+    tanggal_selesai: Optional[date] = None
+    jam_mulai: Optional[time] = None
+    jam_selesai: Optional[time] = None
+    melibatkan_kepala: bool
+    users: List[UserInAktivitas] = []
 
 class TeamBase(CamelModel):
+    id: int
     nama_tim: str
     valid_from: Optional[date] = None
     valid_until: Optional[date] = None
     ketua_tim_id: Optional[int] = None
     warna: Optional[str] = None
 
+class TeamDetail(TeamBase):
+    projects: List[ProjectInTeam] = []
+    aktivitas: List[AktivitasInTeam] = []
+    users: List[UserInTeam] = []
+    ketua_tim: Optional[UserInTeam]
 
 class TeamCreate(TeamBase):
     pass

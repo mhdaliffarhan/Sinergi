@@ -3,13 +3,13 @@ import { useAuthStore } from '@/stores/auth'
 import { useToast } from 'vue-toastification'
 
 import LandingView from '@/views/LandingView.vue'
-import DashboardView from '../views/DashboardView.vue'
 import LoginView from '../views/LoginView.vue'
+import TeamView from '@/views/TeamView.vue'
 import AktivitasDashboardView from '../views/AktivitasDashboardView.vue'
 import AktivitasDaftarView from '../views/AktivitasDaftarView.vue'
-import AboutView from '@/views/AboutView.vue'
 import ProfileView from '@/views/ProfileView.vue'
 import ProjectView from '@/views/ProjectView.vue'
+import DashboardView from '../views/DashboardView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -33,8 +33,20 @@ const router = createRouter({
     {
       path: '/dashboard',
       name: 'dashboard',
-      component: AboutView,
+      component: () => import('../views/DashboardView.vue'),
       meta: { requiresAuth: true }
+    },
+    {
+      path: '/team',
+      name: 'team',
+      component: TeamView,
+      meta: { requiredAuth: true }
+    },
+    {
+      path: '/team/detail/:id',
+      name: 'team-detail',
+      component: () => import('../views/TeamDetailView.vue'),
+      meta: { requiredAuth: true }
     },
     {
       path: '/project',

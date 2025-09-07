@@ -55,7 +55,8 @@ onUnmounted(() => window.removeEventListener('resize', updateIsMobile));
 // Struktur Menu (tidak berubah)
 const menuItems = computed(() => {
   const baseMenu = [
-    { label: 'Dashboard', to: '/aktivitas/dashboard', icon: '📊' },
+    { label: 'Dashboard', to: '/dashboard', icon: '📊' },
+    { label: 'Team', to: '/team', icon: '👥'},
     { label: 'Project', to: '/project', icon: '💼'},
     { 
       label: 'Aktivitas', to: '/aktivitas/daftar', icon: '✅'

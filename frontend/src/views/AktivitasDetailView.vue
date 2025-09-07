@@ -182,7 +182,7 @@ const user = authStore.user;
 const aktivitas = ref(null);
 const isLoading = ref(true);
 const breadcrumbItems = ref([
-  { text: 'Dashboard Aktivitas', to: '/aktivitas/dashboard' },
+  { text: 'Dashboard', to: '/dashboard' },
   { text: 'Daftar Aktivitas', to: '/aktivitas/daftar' },
   { text: 'Project', to: ''},
   { text: 'Detail Aktivitas' }

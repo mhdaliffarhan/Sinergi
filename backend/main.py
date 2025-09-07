@@ -211,7 +211,7 @@ def create_user(user: schemas.UserCreate, db: Session = Depends(database.get_db)
     db.refresh(new_user)
     return new_user
 
-@app.get("/api/users", response_model=schemas.UserPage, response_model_by_alias=True, dependencies=[Depends(security.require_role(["Superadmin", "Admin"]))])
+@app.get("/api/users", response_model=schemas.UserPage, response_model_by_alias=True)
 def get_all_users(
     db: Session = Depends(database.get_db),
     skip: int = 0, 
@@ -448,6 +448,33 @@ def remove_team_member(team_id: int, user_id: int, db: Session = Depends(databas
         db.commit()
         db.refresh(db_team)
 
+    return db_team
+
+@app.get("/api/teams/{team_id}/details", response_model=schemas.TeamDetail, response_model_by_alias=True)
+def get_team_details_with_activities(team_id: int, db: Session = Depends(database.get_db)):
+    """
+    Mengambil detail satu tim, termasuk proyek (dengan aktivitas di dalamnya), anggota, dan ketua.
+    """
+    db_team = db.query(models.Team).options(
+        joinedload(models.Team.ketua_tim).joinedload(models.User.jabatan),
+        joinedload(models.Team.users).joinedload(models.User.jabatan),
+        
+        # Eager load projects dan nested activities di dalamnya
+        joinedload(models.Team.projects).joinedload(models.Project.aktivitas).joinedload(models.Aktivitas.users)
+        
+    ).filter(models.Team.id == team_id).first()
+    
+    if not db_team:
+        raise HTTPException(status_code=404, detail="Tim tidak ditemukan")
+
+    # Opsional: Urutkan aktivitas di dalam setiap proyek
+    for project in db_team.projects:
+        project.aktivitas = sorted(project.aktivitas, key=lambda a: a.tanggal_mulai if a.tanggal_mulai else date.min)
+    
+    # Hapus properti aktivitas yang ada di level tim
+    # Karena kita akan menampilkan aktivitas per proyek
+    db_team.aktivitas = []
+    
     return db_team
 
 # ===================================================================
@@ -1265,3 +1292,72 @@ def get_timeline_data(
         pegawai_data['aktivitas'] = sorted_events
 
     return list(pegawai_map.values())
+
+# Endpoint untuk mengambil semua aktivitas yang melibatkan pengguna tertentu
+@app.get("/api/users/{user_id}/aktivitas", response_model=List[schemas.Aktivitas])
+def get_user_aktivitas(user_id: int, db: Session = Depends(database.get_db)):
+    """
+    Mengambil semua aktivitas di mana pengguna dengan user_id terlibat.
+    """
+    # Mengambil aktivitas yang terkait dengan user, dengan eager loading team untuk kalender
+    user_aktivitas = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.team)
+    ).join(models.anggota_aktivitas_link).filter(
+        models.anggota_aktivitas_link.c.user_id == user_id
+    ).order_by(models.Aktivitas.tanggal_mulai.desc()).all()
+    
+    return user_aktivitas
+
+# Endpoint untuk mengambil semua dokumen wajib yang harus diselesaikan pengguna
+@app.get("/api/users/{user_id}/dokumen-wajib", response_model=List[schemas.DaftarDokumen])
+def get_user_dokumen_wajib(user_id: int, db: Session = Depends(database.get_db)):
+    """
+    Mengambil daftar dokumen wajib yang terkait dengan aktivitas pengguna.
+    """
+    dokumen_wajib = db.query(models.DaftarDokumen).options(
+        joinedload(models.DaftarDokumen.aktivitas),
+        joinedload(models.DaftarDokumen.aktivitas).joinedload(models.Aktivitas.team)
+    ).join(models.Aktivitas).join(models.anggota_aktivitas_link).filter(
+        models.anggota_aktivitas_link.c.user_id == user_id
+    ).order_by(models.Aktivitas.tanggal_mulai.desc()).all()
+
+    return dokumen_wajib
+
+# Endpoint untuk mengambil semua dokumen wajib dari sebuah tim
+@app.get("/api/teams/{team_id}/dokumen-wajib-team", response_model=List[schemas.DaftarDokumen])
+def get_team_dokumen_wajib(team_id: int, db: Session = Depends(database.get_db)):
+    """
+    Mengambil daftar dokumen wajib dari semua aktivitas di sebuah tim.
+    """
+    dokumen_wajib = db.query(models.DaftarDokumen).options(
+        joinedload(models.DaftarDokumen.aktivitas),
+        joinedload(models.DaftarDokumen.aktivitas).joinedload(models.Aktivitas.team)
+    ).join(models.Aktivitas).filter(
+        models.Aktivitas.team_id == team_id
+    ).order_by(models.Aktivitas.tanggal_mulai.desc()).all()
+
+    return dokumen_wajib
+
+@app.get("/api/kalender/events", response_model=List[schemas.Aktivitas])
+def get_calendar_events(
+    db: Session = Depends(database.get_db),
+    team_ids: Optional[str] = Query(None, description="Daftar ID tim yang dipisahkan oleh koma."),
+):
+    """
+    Mengambil daftar semua aktivitas yang relevan untuk tampilan kalender.
+    Jika team_ids diberikan, akan memfilter berdasarkan tim tersebut.
+    """
+    query = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.users),
+        joinedload(models.Aktivitas.team)
+    )
+
+    if team_ids:
+        try:
+            team_id_list = {int(id_str) for id_str in team_ids.split(',') if id_str.isdigit()}
+            if team_id_list:
+                query = query.filter(models.Aktivitas.team_id.in_(team_id_list))
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Format team_ids tidak valid.")
+    
+    return query.all()
