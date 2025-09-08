@@ -623,6 +623,20 @@ def get_all_aktivitas(
     semua_aktivitas = query.order_by(models.Aktivitas.id.desc()).all()
     return semua_aktivitas
 
+@app.get("/api/aktivitas/kepala", response_model=List[schemas.Aktivitas])
+def get_aktivitas_kepala(
+    db: Session = Depends(database.get_db)):
+    
+    query = db.query(models.Aktivitas).options(
+        joinedload(models.Aktivitas.team),
+        joinedload(models.Aktivitas.project)
+    ).filter(
+        models.Aktivitas.melibatkan_kepala == True
+    ).order_by(
+        models.Aktivitas.tanggal_mulai.asc()
+    )
+    return query.all()
+    
 @app.post("/api/aktivitas", response_model=schemas.Aktivitas)
 def create_aktivitas(
     aktivitas: schemas.AktivitasCreate, 

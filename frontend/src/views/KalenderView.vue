@@ -241,152 +241,191 @@ const prevMonth = () => { timelineCurrentDate.value = subMonths(timelineCurrentD
 const nextMonth = () => { timelineCurrentDate.value = addMonths(timelineCurrentDate.value, 1); };
 
 const isWeekend = (dateString) => {
-  const date = new Date(dateString);
-  const day = date.getDay();
-  return day === 0 || day === 6;
+  const date = new Date(dateString);
+  const day = date.getDay();
+  return day === 0 || day === 6;
 };
 
 const assignLanes = (events) => {
-  const sortedEvents = [...events].sort((a, b) => new Date(a.start) - new Date(b.start));
-  const lanes = [];
-  sortedEvents.forEach(event => {
-    let assignedLane = -1;
-    for (let i = 0; i < lanes.length; i++) {
-      let canFit = true;
-      for (const placedEvent of lanes[i]) {
-        const start1 = new Date(event.start);
-        const end1 = event.end ? new Date(event.end) : start1;
-        const start2 = new Date(placedEvent.start);
-        const end2 = placedEvent.end ? new Date(placedEvent.end) : start2;
-        if (Math.max(start1.getTime(), start2.getTime()) <= Math.min(end1.getTime(), end2.getTime())) {
-          canFit = false;
-          break;
-        }
-      }
-      if (canFit) {
-        assignedLane = i;
-        break;
-      }
-    }
-    if (assignedLane === -1) {
-      lanes.push([event]);
-      event.lane = lanes.length;
-    } else {
-      lanes[assignedLane].push(event);
-      event.lane = assignedLane + 1;
-    }
-  });
-  return sortedEvents;
+  const sortedEvents = [...events].sort((a, b) => new Date(a.start) - new Date(b.start));
+  const lanes = [];
+  sortedEvents.forEach(event => {
+    let assignedLane = -1;
+    for (let i = 0; i < lanes.length; i++) {
+      let canFit = true;
+      for (const placedEvent of lanes[i]) {
+        const start1 = new Date(event.start);
+        const end1 = event.end ? new Date(event.end) : start1;
+        const start2 = new Date(placedEvent.start);
+        const end2 = placedEvent.end ? new Date(placedEvent.end) : start2;
+        if (Math.max(start1.getTime(), start2.getTime()) <= Math.min(end1.getTime(), end2.getTime())) {
+          canFit = false;
+          break;
+        }
+      }
+      if (canFit) {
+        assignedLane = i;
+        break;
+      }
+    }
+    if (assignedLane === -1) {
+      lanes.push([event]);
+      event.lane = lanes.length;
+    } else {
+      lanes[assignedLane].push(event);
+      event.lane = assignedLane + 1;
+    }
+  });
+  return sortedEvents;
 };
 
 const getMaxLane = (pegawaiId) => {
-  const events = getEventsForPegawai(pegawaiId);
-  console.log("Maksimal Baris untuk pegawai dengan ID : ",pegawaiId, " adalah ", events.length > 0 ? Math.max(...events.map(e => e.lane)) : 1)
-  return events.length > 0 ? Math.max(...events.map(e => e.lane)) : 1;
+  const events = getEventsForPegawai(pegawaiId);
+  console.log("Maksimal Baris untuk pegawai dengan ID : ",pegawaiId, " adalah ", events.length > 0 ? Math.max(...events.map(e => e.lane)) : 1)
+  return events.length > 0 ? Math.max(...events.map(e => e.lane)) : 1;
 };
 
 const fetchInitialData = async () => {
-  try {
-    const [teamsResponse, usersResponse] = await Promise.all([
-      axios.get(`${baseURL}/api/teams?limit=1000`),
-      axios.get(`${baseURL}/api/users?limit=1000`)
-    ]);
-    teams.value = teamsResponse.data.items;
-    allPegawai.value = usersResponse.data.items.sort((a, b) => a.namaLengkap.localeCompare(b.namaLengkap));
+  try {
+    const [teamsResponse, usersResponse] = await Promise.all([
+      axios.get(`${baseURL}/api/teams?limit=1000`),
+      axios.get(`${baseURL}/api/users?limit=1000`)
+    ]);
+    teams.value = teamsResponse.data.items;
+    
+    // Tambahkan tim "Kepala" secara manual di awal daftar
+    const kepalaTim = {
+      id: 'kepala-kantor-filter', // ID unik
+      namaTim: 'Kepala Kantor',
+      warna: '#00BFFF' // Warna khusus
+    };
+    teams.value.unshift(kepalaTim);
 
-    const kepala = allPegawai.value.find(p => p.jabatan?.namaJabatan === "Kepala Kantor");
-    if (kepala) {
-      selectedPegawaiId.value = kepala.id;
-    }
-  } catch (err) {
-    console.error("Gagal mengambil data awal:", err);
-    toast.error("Gagal mengambil data tim atau pegawai.");
-  }
+    allPegawai.value = usersResponse.data.items.sort((a, b) => a.namaLengkap.localeCompare(b.namaLengkap));
+
+    const kepala = allPegawai.value.find(p => p.jabatan?.namaJabatan === "Kepala Kantor");
+    if (kepala) {
+      selectedPegawaiId.value = kepala.id;
+    }
+  } catch (err) {
+    console.error("Gagal mengambil data awal:", err);
+    toast.error("Gagal mengambil data tim atau pegawai.");
+  }
 };
 
 const fetchAktivitas = async () => {
-  try {
-    let endpoint = `${baseURL}/api/aktivitas`; // Endpoint default
+  try {
+    let endpoint = '';
     let params = {};
+    const isKepalaSelected = selectedTeams.value.some(t => t.id === 'kepala-kantor-filter');
 
-    if (mode.value === 'team' || mode.value === 'timeline') {
-      // Jika filter tim, gunakan endpoint events
+    if (mode.value === 'team' || mode.value === 'timeline') {
+      // Periksa apakah tim 'Kepala Kantor' yang dipilih
+      if (isKepalaSelected) {
+        endpoint = `${baseURL}/api/aktivitas/kepala`;
+      } else {
+        // Logika untuk tim lain (yang sudah ada)
+        endpoint = `${baseURL}/api/kalender/events`;
+        const teamIds = selectedTeams.value.map(t => t.id).join(',');
+        if (teamIds) params.team_ids = teamIds;
+      }
+    } else if (mode.value === 'person' && selectedPegawaiId.value) {
+      endpoint = `${baseURL}/api/users/${selectedPegawaiId.value}/aktivitas`;
+    } else {
+      // Endpoint default jika tidak ada mode atau filter yang dipilih
       endpoint = `${baseURL}/api/kalender/events`;
-      const teamIds = selectedTeams.value.map(t => t.id).join(',');
-      if (teamIds) params.team_ids = teamIds;
-    } else if (mode.value === 'person' && selectedPegawaiId.value) {
-      // Jika filter per orang, gunakan endpoint users/aktivitas
-      endpoint = `${baseURL}/api/users/${selectedPegawaiId.value}/aktivitas`;
     }
-    
-    const response = await axios.get(endpoint, { params });
-    aktivitas.value = response.data;
-  } catch (err) {
-    console.error("Gagal mengambil data aktivitas:", err);
-    toast.error("Gagal mengambil data aktivitas.");
-  }
+    
+    const response = await axios.get(endpoint, { params });
+    aktivitas.value = response.data;
+  } catch (err) {
+    console.error("Gagal mengambil data aktivitas:", err);
+    toast.error("Gagal mengambil data aktivitas.");
+  }
 };
 
 const filteredActivities = computed(() => {
-  let data = aktivitas.value;
+  let data = aktivitas.value;
 
-  // Kondisi 1: Mode Tim
-  if (mode.value === 'team') {
-    // Filter aktivitas berdasarkan tim yang dipilih
-    if (selectedTeams.value.length > 0) {
-      const teamIds = new Set(selectedTeams.value.map(t => t.id));
-      data = data.filter(a => a.teamId && teamIds.has(a.teamId));
-    }
-  } 
-  // Kondisi 2: Mode Timeline atau Person
-  else if (mode.value === 'timeline' || mode.value === 'person') {
-    // Ambil semua ID pegawai yang relevan
-    const relevantPegawaiIds = new Set(daftarPegawaiTimeline.value.map(p => p.id));
-
-    if (relevantPegawaiIds.size > 0) {
-      // Filter aktivitas yang melibatkan pegawai tersebut, tanpa melihat timnya
-      data = data.filter(a => a.users?.some(u => relevantPegawaiIds.has(u.id)));
-    } else {
-        // Jika tidak ada pegawai yang relevan, kembalikan array kosong
-        data = [];
-    }
+  // Cek apakah tim "Kepala" dipilih
+  const isKepalaSelected = selectedTeams.value.some(t => t.id === 'kepala-kantor-filter');
+  
+  if (mode.value === 'team' && isKepalaSelected) {
+    // Jika mode team dan filter 'Kepala Kantor' aktif, kembalikan semua data dari endpoint khusus
+    return data;
   }
+  // Kondisi 1: Mode Tim
+  if (mode.value === 'team') {
+    // Filter aktivitas berdasarkan tim yang dipilih
+    if (selectedTeams.value.length > 0) {
+      const teamIds = new Set(selectedTeams.value.map(t => t.id));
+      data = data.filter(a => a.teamId && teamIds.has(a.teamId));
+    }
+  } 
+  // Kondisi 2: Mode Timeline atau Person
+  else if (mode.value === 'timeline' || mode.value === 'person') {
+    // Ambil semua ID pegawai yang relevan
+    const relevantPegawaiIds = new Set(daftarPegawaiTimeline.value.map(p => p.id));
 
-  // Default: Jika tidak ada mode filter yang cocok, kembalikan semua data
-  return data;
+    if (relevantPegawaiIds.size > 0) {
+      // Filter aktivitas yang melibatkan pegawai tersebut, tanpa melihat timnya
+      data = data.filter(a => a.users?.some(u => relevantPegawaiIds.has(u.id)));
+    } else {
+        // Jika tidak ada pegawai yang relevan, kembalikan array kosong
+        data = [];
+    }
+  }
+
+  return data;
 });
 
 const selectAllTeams = () => { selectedTeams.value = []; };
 const toggleTeam = (team) => {
-  const index = selectedTeams.value.findIndex(t => t.id === team.id);
-  if (index > -1) { selectedTeams.value.splice(index, 1); }
-  else { selectedTeams.value.push(team); }
+  const index = selectedTeams.value.findIndex(t => t.id === team.id);
+  
+  // Jika 'Kepala Kantor' dipilih, hapus tim lain dan sebaliknya
+  if (team.id === 'kepala-kantor-filter') {
+    selectedTeams.value = [team];
+  } else if (index > -1) { 
+    selectedTeams.value.splice(index, 1); 
+  } else { 
+    selectedTeams.value.push(team); 
+    // Hapus 'Kepala Kantor' jika tim lain dipilih
+    const kepalaIndex = selectedTeams.value.findIndex(t => t.id === 'kepala-kantor-filter');
+    if (kepalaIndex > -1) {
+      selectedTeams.value.splice(kepalaIndex, 1);
+    }
+  }
 };
 const isTeamSelected = (team) => { return selectedTeams.value.some(t => t.id === team.id); };
 
 const filteredPegawai = computed(() => {
-  if (!searchQuery.value) {
-    return allPegawai.value;
-  }
-  const query = searchQuery.value.toLowerCase();
-  return allPegawai.value.filter(p => p.namaLengkap.toLowerCase().includes(query) || p.username.toLowerCase().includes(query));
+  if (!searchQuery.value) {
+    return allPegawai.value;
+  }
+  const query = searchQuery.value.toLowerCase();
+  return allPegawai.value.filter(p => p.namaLengkap.toLowerCase().includes(query) || p.username.toLowerCase().includes(query));
 });
 
 const selectPegawai = (pegawai) => {
-  selectedPegawaiId.value = pegawai.id;
-  searchQuery.value = pegawai.id ? pegawai.namaLengkap : "";
-  showDropdown.value = false;
+  selectedPegawaiId.value = pegawai.id;
+  searchQuery.value = pegawai.id ? pegawai.namaLengkap : "";
+  showDropdown.value = false;
 };
 
 const handleBlur = () => {
-  setTimeout(() => { showDropdown.value = false; }, 200);
+  setTimeout(() => { showDropdown.value = false; }, 200);
 };
 
 const daftarPegawaiTimeline = computed(() => {
   const pegawaiMap = new Map();
+  const isKepalaSelected = selectedTeams.value.some(t => t.id === 'kepala-kantor-filter');
 
-  // Jika ada tim yang dipilih, kumpulkan semua anggota dari tim tersebut
-  if (mode.value === 'timeline' && selectedTeams.value.length > 0) {
+  // Jika tim 'Kepala Kantor' dipilih, tambahkan hanya Kepala Kantor ke timeline
+  if (isKepalaSelected) {
+    const kepala = allPegawai.value.find(p => p.jabatan?.namaJabatan === "Kepala Kantor");
+    if (kepala) pegawaiMap.set(kepala.id, kepala);
+  } else if (mode.value === 'timeline' && selectedTeams.value.length > 0) {
     selectedTeams.value.forEach(t => {
       const teamData = teams.value.find(team => team.id === t.id);
       if (teamData && teamData.users) {
@@ -394,173 +433,172 @@ const daftarPegawaiTimeline = computed(() => {
       }
     });
   } else {
-    // Jika tidak ada tim yang dipilih, kumpulkan semua pegawai dari semua aktivitas yang ada
     aktivitas.value.forEach(a => {
       if (a.users) {
         a.users.forEach(u => pegawaiMap.set(u.id, u));
       }
     });
   }
-
   return Array.from(pegawaiMap.values()).sort((a, b) => a.namaLengkap.localeCompare(b.namaLengkap));
 });
 
 const calendarEvents = computed(() =>
-  filteredActivities.value.map(a => {
-    const endDate = a.tanggalSelesai ? new Date(a.tanggalSelesai) : new Date(a.tanggalMulai);
-    endDate.setDate(endDate.getDate() + 1); // FullCalendar end date is exclusive
-    
-    return {
-      id: a.id,
-      title: a.namaAktivitas,
-      start: a.tanggalMulai,
-      end: endDate.toISOString().split('T')[0],
-      backgroundColor: a.team?.warna || '#2563eb',
-      borderColor: a.team?.warna || '#2563eb',
-      textColor: '#fff'
-    };
-  })
+  filteredActivities.value.map(a => {
+    const endDate = a.tanggalSelesai ? new Date(a.tanggalSelesai) : new Date(a.tanggalMulai);
+    endDate.setDate(endDate.getDate() + 1);
+    
+    return {
+      id: a.id,
+      title: a.namaAktivitas,
+      start: a.tanggalMulai,
+      end: endDate.toISOString().split('T')[0],
+      backgroundColor: a.team?.warna || '#2563eb',
+      borderColor: a.team?.warna || '#2563eb',
+      textColor: '#fff'
+    };
+  })
 );
 
 const renderCalendar = () => {
-  if (fullCalendarInstance) {
-    fullCalendarInstance.destroy();
-  }
-  
-  fullCalendarInstance = new Calendar(calendar.value, {
-  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
-    initialView: "dayGridMonth",
-    headerToolbar: {
-      left: 'prev,next today',
-      center: 'title',
-      right: 'dayGridMonth,timeGridWeek,timeGridDay'
-    },
-    initialView: "dayGridMonth",
-    events: calendarEvents.value,
-    locale: idLocale,
-    buttonText: { 
-      today: 'Hari Ini',
-      month: 'Bulan',
-      week: 'Minggu',
-      day: 'Hari'
-    },
-    eventClick: (info) => {
-      const id = info.event.id;
-      router.push(`/aktivitas/detail/${id}`);
-    },
-    eventDidMount: (info) => {
-      info.el.style.backgroundColor = info.event.extendedProps.backgroundColor;
-      info.el.style.borderColor = info.event.extendedProps.borderColor;
-      info.el.style.cursor = 'pointer';
-      info.el.style.color = '#ffffff';
-    }
-  });
-  fullCalendarInstance.render();
+  if (fullCalendarInstance) {
+    fullCalendarInstance.destroy();
+  }
+  
+  fullCalendarInstance = new Calendar(calendar.value, {
+  plugins: [dayGridPlugin, timeGridPlugin, interactionPlugin],
+    initialView: "dayGridMonth",
+    headerToolbar: {
+      left: 'prev,next today',
+      center: 'title',
+      right: 'dayGridMonth,dayGridWeek,dayGridDay'
+    },
+    initialView: "dayGridMonth",
+    events: calendarEvents.value,
+    locale: idLocale,
+    buttonText: { 
+      today: 'Hari Ini',
+      month: 'Bulan',
+      week: 'Minggu',
+      day: 'Hari'
+    },
+    eventClick: (info) => {
+      const id = info.event.id;
+      router.push(`/aktivitas/detail/${id}`);
+    },
+    eventDidMount: (info) => {
+      info.el.style.backgroundColor = info.event.extendedProps.backgroundColor;
+      info.el.style.borderColor = info.event.extendedProps.borderColor;
+      info.el.style.cursor = 'pointer';
+      info.el.style.color = '#ffffff';
+    }
+  });
+  fullCalendarInstance.render();
 };
 
 const timelineDates = computed(() => {
-  const start = startOfMonth(timelineCurrentDate.value);
-  const end = endOfMonth(timelineCurrentDate.value)
-  const data = eachDayOfInterval({ start, end }).map(date => {
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  });
+  const start = startOfMonth(timelineCurrentDate.value);
+  const end = endOfMonth(timelineCurrentDate.value)
+  const data = eachDayOfInterval({ start, end }).map(date => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  });
 
-  console.log("Start : ", start, " || End :  ", end, "|| Data : ", data);
-  return data;
+  console.log("Start : ", start, " || End :  ", end, "|| Data : ", data);
+  return data;
 });
 
 const getEventsForPegawai = (pegawaiId) => {
-    const events = filteredActivities.value
-        .filter(a => a.users && a.users.some(u => u.id === pegawaiId))
-        .map(a => {
-            const eventStart = a.tanggalMulai;
-            const eventEnd = a.tanggalSelesai ? a.tanggalSelesai : a.tanggalMulai;
-            
-            return {
-                ...a,
-                title: a.namaAktivitas,
-                start_time: a.jamMulai,
-                end_time: a.jamSelesai,
-                start: eventStart,
-                end: eventEnd,
-                backgroundColor: a.team?.warna || '#2563eb',
-            };
-        });
+    const events = filteredActivities.value
+        .filter(a => a.users && a.users.some(u => u.id === pegawaiId))
+        .map(a => {
+            const eventStart = a.tanggalMulai;
+            const eventEnd = a.tanggalSelesai ? a.tanggalSelesai : a.tanggalMulai;
+            
+            return {
+                ...a,
+                title: a.namaAktivitas,
+                start_time: a.jamMulai,
+                end_time: a.jamSelesai,
+                start: eventStart,
+                end: eventEnd,
+                backgroundColor: a.team?.warna || '#2563eb',
+            };
+        });
 
-    const filteredByMonth = events.filter(e => {
-        const eventStart = new Date(e.start);
-        const eventEnd = e.end ? new Date(e.end) : eventStart;
-        const currentMonthStart = startOfMonth(timelineCurrentDate.value);
-        const currentMonthEnd = endOfMonth(timelineCurrentDate.value);
+    const filteredByMonth = events.filter(e => {
+        const eventStart = new Date(e.start);
+        const eventEnd = e.end ? new Date(e.end) : eventStart;
+        const currentMonthStart = startOfMonth(timelineCurrentDate.value);
+        const currentMonthEnd = endOfMonth(timelineCurrentDate.value);
 
-        return isWithinInterval(eventStart, { start: currentMonthStart, end: currentMonthEnd }) ||
-               isWithinInterval(eventEnd, { start: currentMonthStart, end: currentMonthEnd }) ||
-               (eventStart < currentMonthStart && eventEnd > currentMonthEnd);
-    });
-    
-    return assignLanes(filteredByMonth);
+        return isWithinInterval(eventStart, { start: currentMonthStart, end: currentMonthEnd }) ||
+               isWithinInterval(eventEnd, { start: currentMonthStart, end: currentMonthEnd }) ||
+               (eventStart < currentMonthStart && eventEnd > currentMonthEnd);
+    });
+    
+    return assignLanes(filteredByMonth);
 };
 
 const calculateEventWidth = (event) => {
-  const eventStart = parseISO(event.start);
-  const eventEnd = event.end ? parseISO(event.end) : eventStart;
-  const currentMonthStart = startOfMonth(timelineCurrentDate.value);
-  const currentMonthEnd = endOfMonth(timelineCurrentDate.value);
-  const effectiveStart = eventStart < currentMonthStart ? currentMonthStart : eventStart;
-  const effectiveEnd = eventEnd > currentMonthEnd ? currentMonthEnd : eventEnd;
-  const days = differenceInDays(effectiveEnd, effectiveStart) + 1;
-  return days * 50;
+  const eventStart = parseISO(event.start);
+  const eventEnd = event.end ? parseISO(event.end) : eventStart;
+  const currentMonthStart = startOfMonth(timelineCurrentDate.value);
+  const currentMonthEnd = endOfMonth(timelineCurrentDate.value);
+  const effectiveStart = eventStart < currentMonthStart ? currentMonthStart : eventStart;
+  const effectiveEnd = eventEnd > currentMonthEnd ? currentMonthEnd : eventEnd;
+  const days = differenceInDays(effectiveEnd, effectiveStart) + 1;
+  return days * 50;
 };
 
 const calculateEventOffset = (event) => {
-  const eventStart = parseISO(event.start);
-  const currentMonthStart = startOfMonth(timelineCurrentDate.value);
-  const effectiveStart = eventStart < currentMonthStart ? currentMonthStart : eventStart;
-  const daysOffset = differenceInDays(effectiveStart, currentMonthStart);
-  return daysOffset * 50;
+  const eventStart = parseISO(event.start);
+  const currentMonthStart = startOfMonth(timelineCurrentDate.value);
+  const effectiveStart = eventStart < currentMonthStart ? currentMonthStart : eventStart;
+  const daysOffset = differenceInDays(effectiveStart, currentMonthStart);
+  return daysOffset * 50;
 };
 
 const goToActivityDetail = (id) => {
-  router.push(`/aktivitas/detail/${id}`);
+  router.push(`/aktivitas/detail/${id}`);
 };
 
 onMounted(() => {
-  fetchInitialData();
+  fetchInitialData();
 });
 
 watch(mode, () => {
-  // Reset filter saat mode berubah
-  selectedTeams.value = [];
-  selectedPegawaiId.value = null;
+  // Reset filter saat mode berubah
+  selectedTeams.value = [];
+  selectedPegawaiId.value = null;
 
-  // Jika mode baru adalah 'person', atur pegawai default ke kepala kantor
-  if (mode.value === 'person') {
-    const kepala = allPegawai.value.find(p => p.jabatan?.namaJabatan === "Kepala Kantor");
-    if (kepala) {
-      selectedPegawaiId.value = kepala.id;
-    } else {
-      selectedPegawaiId.value = allPegawai.value[0]?.id || null;
-    }
-  }
+  // Jika mode baru adalah 'person', atur pegawai default ke kepala kantor
+  if (mode.value === 'person') {
+    const kepala = allPegawai.value.find(p => p.jabatan?.namaJabatan === "Kepala Kantor");
+    if (kepala) {
+      selectedPegawaiId.value = kepala.id;
+    } else {
+      selectedPegawaiId.value = allPegawai.value[0]?.id || null;
+    }
+  }
 
-  fetchAktivitas();
+  fetchAktivitas();
 });
 
 watch([selectedTeams, selectedPegawaiId, mode], () => {
-  fetchAktivitas();
+  fetchAktivitas();
 });
 
 watch(filteredActivities, (newActivities) => {
-  if (mode.value === 'team' || mode.value === 'person') {
-    nextTick(() => {
-      renderCalendar();
-    });
-  }
+  if (mode.value === 'team' || mode.value === 'person') {
+    nextTick(() => {
+      renderCalendar();
+    });
+  }
 });
 </script>
+
 
 <style scoped>
 /* Style Timeline Custom yang disempurnakan */

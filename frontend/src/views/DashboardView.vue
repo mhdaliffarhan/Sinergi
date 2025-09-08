@@ -14,20 +14,16 @@
     <div v-else class="space-y-8">
       <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between">
         <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Dashboard {{ dashboardTitle }}</h1>
-        <p class="mt-2 text-lg text-gray-600 dark:text-gray-300">Selamat datang, {{ authStore.user?.namaLengkap || 'Pengguna' }}!</p>
       </div>
 
       <div v-if="isKepalaKantor">
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-6">
-          <DashboardCard icon="👥" title="Total Anggota" :value="totalAnggota" color="text-blue-500" />
-          <DashboardCard icon="✅" title="Aktivitas Berjalan" :value="totalAktivitasKantor" color="text-orange-500" />
-          <DashboardCard icon="💼" title="Proyek Berjalan" :value="totalProyekKantor" color="text-purple-500" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mt-6">
+          <DashboardCard icon="👥" title="Total Pegawai" :value="totalAnggota" color="text-blue-500" />
+          <!-- <DashboardCard icon="💼" title="Proyek Aktif" :value="totalProyekKantor" color="text-purple-500" />
+          <DashboardCard icon="✅" title="Aktivitas Berjalan" :value="totalAktivitasKantor" color="text-orange-500" /> -->
           <DashboardCard icon="📅" title="Tim Aktif" :value="totalTimAktif" color="text-green-500" />
         </div>
-        <section class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mt-8">
-          <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Jadwal Aktivitas Penting</h2>
-          <div ref="calendar" class="w-full"></div>
-        </section>
+        
         <section class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mt-8">
           <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Kegiatan Minggu Ini</h2>
           <div v-if="upcomingAktivitasKantor.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -47,8 +43,15 @@
             </div>
           </div>
           <div v-else class="text-center text-gray-500 dark:text-gray-400 p-6">
-            Tidak ada kegiatan penting minggu ini.
+            Tidak ada kegiatan minggu ini.
           </div>
+        </section>
+        
+        <section class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mt-8">
+          <div class="flex items-center gap-4 mb-4 flex-wrap">
+            <h2 class="text-xl font-semibold text-gray-800 dark:text-gray-200">Aktivitas Saya</h2>
+          </div>
+          <div ref="calendar" class="w-full"></div>
         </section>
       </div>
 
@@ -146,7 +149,8 @@ import { useToast } from 'vue-toastification';
 import { Calendar } from '@fullcalendar/core';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import idLocale from '@fullcalendar/core/locales/id';
-import { isWithinInterval, startOfWeek, endOfWeek, compareAsc } from 'date-fns';
+import { isWithinInterval, startOfWeek, endOfWeek, compareAsc, isFuture, isToday } from 'date-fns';
+import { id } from 'date-fns/locale';
 import { Swiper, SwiperSlide } from 'swiper/vue';
 import 'swiper/css';
 import 'swiper/css/navigation';
@@ -157,6 +161,7 @@ import DokumenProgressSection from '@/components/dashboard/DokumenProgressSectio
 import ModalAktivitas from '@/components/aktivitas/ModalAktivitas.vue';
 import AktivitasCard from '@/components/aktivitas/AktivitasCard.vue';
 import { format } from 'date-fns';
+import timeGridPlugin from '@fullcalendar/timegrid';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
@@ -175,6 +180,9 @@ const dokumenWajibSaya = ref([]);
 const dokumenWajibTeam = ref([]);
 const selectedTeamId = ref(null);
 const upcomingAktivitasKantor = ref([]);
+const calendarFilter = ref('saya');
+const allAktivitasKepalaKantor = ref([]);
+
 
 const isModalOpen = ref(false);
 const selectedAktivitas = ref(null);
@@ -189,7 +197,6 @@ const dashboardTitle = computed(() => {
   return 'Saya';
 });
 
-// Computed properties untuk Kepala Kantor
 const totalAnggota = computed(() => allUsers.value.length);
 const totalTimAktif = computed(() => allTeams.value.length);
 const totalProyekKantor = computed(() => {
@@ -199,7 +206,6 @@ const totalProyekKantor = computed(() => {
 });
 const totalAktivitasKantor = computed(() => allAktivitas.value.length);
 
-// Computed properties untuk Ketua Tim
 const teamMembers = computed(() => team.value?.users || []);
 const teamProjects = computed(() => team.value?.projects || []);
 const teamAktivitas = computed(() => {
@@ -208,35 +214,24 @@ const teamAktivitas = computed(() => {
   return selectedTeam ? selectedTeam.aktivitas : [];
 });
 
-// Computed properties untuk Anggota Tim
 const totalAktivitasSaya = computed(() => allAktivitas.value.length);
 const dokumenBelumSelesai = computed(() => dokumenWajibSaya.value.filter(d => !d.statusPengecekan).length);
 const aktivitasMingguIni = computed(() => {
   const today = new Date();
   const startOfThisWeek = startOfWeek(today, { weekStartsOn: 1 });
   const endOfThisWeek = endOfWeek(today, { weekStartsOn: 1 });
-
   return allAktivitas.value.filter(aktivitas => {
-    // Tanggal mulai dan selesai dari aktivitas
     const tanggalMulai = new Date(aktivitas.tanggalMulai);
     const tanggalSelesai = aktivitas.tanggalSelesai ? new Date(aktivitas.tanggalSelesai) : tanggalMulai;
-
-    console.log("Data || tanggal mulai : ", tanggalMulai, " || tanggal selesai : ", tanggalSelesai);
-    // Periksa apakah ada irisan antara rentang aktivitas dengan rentang minggu ini
     const isOverlapping = (
-      // Kasus 1: Aktivitas dimulai di dalam minggu ini
       isWithinInterval(tanggalMulai, { start: startOfThisWeek, end: endOfThisWeek }) ||
-      // Kasus 2: Aktivitas berakhir di dalam minggu ini
       isWithinInterval(tanggalSelesai, { start: startOfThisWeek, end: endOfThisWeek }) ||
-      // Kasus 3: Aktivitas dimulai sebelum dan berakhir setelah minggu ini
       (tanggalMulai < startOfThisWeek && tanggalSelesai > endOfThisWeek)
     );
-
     return isOverlapping;
   }).length;
 });
 
-// Pengurutan aktivitas anggota tim berdasarkan progres dokumen
 const sortedAktivitasSaya = computed(() => {
   return [...allAktivitas.value].sort((a, b) => {
     const aProgress = a.daftarDokumenWajib?.filter(doc => doc.dokumenId !== null).length ?? 0;
@@ -247,7 +242,6 @@ const sortedAktivitasSaya = computed(() => {
     const aCompletion = aTotal > 0 ? aProgress / aTotal : 1;
     const bCompletion = bTotal > 0 ? bProgress / bTotal : 1;
     
-    // Urutkan dari yang progresnya paling rendah ke tertinggi
     return aCompletion - bCompletion;
   });
 });
@@ -260,19 +254,23 @@ const fetchDashboardData = async () => {
       router.push({ name: 'login' });
       return;
     }
+    
+    const [teamsRes, usersRes] = await Promise.all([
+      axios.get(`${baseURL}/api/teams/active`),
+      axios.get(`${baseURL}/api/users`, { params: { limit: 10000 } })
+    ]);
+    allTeams.value = teamsRes.data;
+    allUsers.value = usersRes.data.items;
 
     if (isKepalaKantor.value) {
-      const [aktivitasRes, teamsRes, usersRes, aktivitasKepalaRes] = await Promise.all([
-        axios.get(`${baseURL}/api/kalender/events`),
-        axios.get(`${baseURL}/api/teams/active`),
-        axios.get(`${baseURL}/api/users`, { params: { limit: 10000 } }),
-        axios.get(`${baseURL}/api/aktivitas/penting`)
-      ]);
-      allAktivitas.value = aktivitasRes.data;
-      allTeams.value = teamsRes.data;
-      allUsers.value = usersRes.data.items;
-      upcomingAktivitasKantor.value = aktivitasKepalaRes.data;
-      renderCalendar(upcomingAktivitasKantor.value);
+      // Ambil semua data aktivitas dari endpoint kepala kantor
+      const allAktivitasRes = await axios.get(`${baseURL}/api/aktivitas/kepala`);
+
+      // Simpan semua aktivitas kantor
+      allAktivitasKepalaKantor.value = allAktivitasRes.data;
+
+      // Filter aktivitas yang akan datang dari data yang sama
+      filterUpcomingAktivitas();
 
     } else if (isKetuaTim.value) {
       const teamId = selectedTeamId.value;
@@ -285,7 +283,6 @@ const fetchDashboardData = async () => {
         allAktivitas.value = aktivitasRes.data;
         team.value = teamDetailsRes.data;
         dokumenWajibTeam.value = dokumenRes.data;
-        renderCalendar(allAktivitas.value);
       }
     } else { // Anggota Tim
       const [aktivitasRes, dokumenRes] = await Promise.all([
@@ -294,8 +291,8 @@ const fetchDashboardData = async () => {
       ]);
       allAktivitas.value = aktivitasRes.data;
       dokumenWajibSaya.value = dokumenRes.data;
-      renderCalendar(allAktivitas.value);
     }
+
   } catch (error) {
     toast.error('Gagal memuat data dashboard.');
     console.error('Error fetching dashboard data:', error);
@@ -304,7 +301,21 @@ const fetchDashboardData = async () => {
   }
 };
 
-const renderCalendar = (eventsData) => {
+const filterUpcomingAktivitas = () => {
+  const today = new Date();
+  upcomingAktivitasKantor.value = allAktivitasKepalaKantor.value.filter(aktivitas => {
+    const tanggalMulai = new Date(aktivitas.tanggalMulai);
+    const tanggalSelesai = aktivitas.tanggalSelesai ? new Date(aktivitas.tanggalSelesai) : tanggalMulai;
+
+    // Cek apakah tanggal mulai atau tanggal selesai berada di masa depan atau hari ini
+    return isFuture(tanggalMulai) || isFuture(tanggalSelesai) || isToday(tanggalMulai) || isToday(tanggalSelesai);
+  }).sort((a, b) => {
+    // Urutkan berdasarkan tanggal mulai terdekat
+    return compareAsc(new Date(a.tanggalMulai), new Date(b.tanggalMulai));
+  });
+};
+
+const renderCalendar = () => {
   if (!calendar.value) {
     console.error("Elemen kalender tidak ditemukan.");
     return;
@@ -314,7 +325,7 @@ const renderCalendar = (eventsData) => {
     fullCalendarInstance.destroy();
   }
   
-  const events = eventsData.map(aktivitas => ({
+  const events = kalenderEventsData.value.map(aktivitas => ({
     title: aktivitas.namaAktivitas,
     start: aktivitas.tanggalMulai,
     end: aktivitas.tanggalSelesai ? new Date(new Date(aktivitas.tanggalSelesai).setDate(new Date(aktivitas.tanggalSelesai).getDate() + 1)) : aktivitas.tanggalMulai,
@@ -325,19 +336,20 @@ const renderCalendar = (eventsData) => {
   }));
 
   fullCalendarInstance = new Calendar(calendar.value, {
-    plugins: [dayGridPlugin],
-    initialView: 'dayGridMonth',
+    plugins: [dayGridPlugin, timeGridPlugin],
+    initialView: isKepalaKantor.value ? 'dayGridWeek' : 'dayGridMonth',
     locale: idLocale,
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'dayGridMonth,dayGridWeek'
+      right: 'dayGridMonth,dayGridWeek,dayGridDay'
     },
     events: events,
     eventDidMount: (info) => {
       info.el.style.backgroundColor = info.event.extendedProps.teamColor;
       info.el.style.borderColor = info.event.extendedProps.teamColor;
       info.el.style.cursor = 'pointer';
+      info.el.style.color = '#ffffff';
     },
     eventClick: (info) => {
       const aktivitasId = info.event.extendedProps.aktivitasId;
@@ -368,15 +380,22 @@ const goToAktivitas = (id) => {
 };
 
 const formatPeriode = (start, end) => {
-  if (!start) return '-';
-  const options = { day: 'numeric', month: 'short', year: 'numeric' };
-  const startDate = new Date(start);
-  const endDate = end ? new Date(end) : null;
-  if (endDate) {
-    return `${format(startDate, 'd MMMM yyyy', { locale: id })} - ${format(endDate, 'd MMMM yyyy', { locale: id })}`;
-  }
-  return format(startDate, 'd MMMM yyyy', { locale: id });
+    if (!start) return '-';
+    const startDate = new Date(start);
+    const endDate = end ? new Date(end) : null;
+    if (endDate) {
+        return `${format(startDate, 'd MMMM yyyy', { locale: id })} - ${format(endDate, 'd MMMM yyyy', { locale: id })}`;
+    }
+    return format(startDate, 'd MMMM yyyy', { locale: id });
 };
+
+const kalenderEventsData = computed(() => {
+    if (isKepalaKantor.value) {
+        return allAktivitasKepalaKantor.value;
+    } else {
+        return allAktivitas.value;
+    }
+});
 
 watch(() => authStore.user?.ketuaTimAktif, (newVal) => {
   if (newVal && newVal.length > 0) {
@@ -390,12 +409,25 @@ watch(selectedTeamId, () => {
   }
 });
 
-watch(allAktivitas, (newAktivitas) => {
-    if (newAktivitas) {
+watch(calendarFilter, () => {
+    if (isKepalaKantor.value) {
         nextTick(() => {
-            renderCalendar(newAktivitas);
+            renderCalendar();
         });
     }
+});
+
+watch(allAktivitas, () => {
+    nextTick(() => {
+        renderCalendar();
+    });
+});
+
+watch(allAktivitasKepalaKantor, () => {
+    filterUpcomingAktivitas();
+    nextTick(() => {
+        renderCalendar();
+    });
 });
 
 onMounted(() => {
@@ -408,45 +440,54 @@ onMounted(() => {
 </script>
 
 <style>
-/* Style Umum */
-.fc-daygrid-event:hover {
-  cursor: pointer;
-  transform: scale(1.02);
-  transition: transform 0.2s ease-in-out;
-  filter: brightness(1.1);
+/* Style kalender */
+.fc-toolbar.fc-header-toolbar {
+  margin-bottom: 1.5rem;
 }
-.fc .fc-button-primary {
-  background-color: #2563eb;
-  border-color: #2563eb;
-  transition: background-color 0.2s;
+.fc-toolbar-title {
+  font-size: 1.5rem;
+  font-weight: 700;
 }
-.fc .fc-button-primary:hover {
-  background-color: #1d4ed8;
-  border-color: #1d4ed8;
+.dark .fc-toolbar-title,
+.dark .fc-button-primary {
+  color: #fff;
 }
-.fc .fc-button-primary:active {
-  background-color: #1e40af !important;
-  border-color: #1e40af !important;
+.dark .fc-button-primary:hover {
+  color: #eee;
 }
-.fc .fc-button-primary:focus {
-  box-shadow: none;
+.dark .fc-daygrid-day-number,
+.dark .fc-col-header-cell-cushion {
+  color: #ccc;
 }
-.dark .fc .fc-col-header-cell-cushion,
-.dark .fc .fc-daygrid-day-number,
-.dark .fc .fc-toolbar-title,
-.dark .fc a:not(.fc-event) {
-  color: #e5e7eb;
+.dark .fc-day-other .fc-daygrid-day-number {
+  color: #6b7280;
 }
-.dark .fc-daygrid-event .fc-event-title {
-  color: #ffffff;
+.dark .fc-daygrid-day {
+  background-color: #1f2937;
+  border-color: #4b5563;
+}
+.dark .fc-day-today {
+  background-color: #2e3a47 !important;
+}
+.dark .fc-day-today .fc-daygrid-day-number {
+  color: #fff;
+}
+.dark .fc-daygrid-event {
+  color: #fff;
+}
+.dark .fc-theme-standard .fc-scrollgrid {
+  border-color: #4b5563;
+}
+.dark .fc-theme-standard td,
+.dark .fc-theme-standard th {
+  border-color: #4b5563;
 }
 
-/* Style Timeline Custom yang disempurnakan */
+/* Style timeline */
 .timeline-scroll-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-
 .timeline-header-label-col, .timeline-row-label {
   flex-shrink: 0;
   width: 200px;
@@ -465,7 +506,6 @@ onMounted(() => {
   background-color: #1f2937;
   color: #e5e7eb;
 }
-
 .timeline-header-day-col {
   flex-shrink: 0;
   min-width: 50px;
@@ -481,21 +521,19 @@ onMounted(() => {
   border-bottom-color: #4b5563;
   background-color: #1f2937;
 }
-
 .bg-weekend-light {
-  background-color: #f3f4f6; /* gray-100 */
+  background-color: #f3f4f6;
 }
 .dark .bg-weekend-dark {
-  background-color: #374151; /* gray-700 */
+  background-color: #374151;
 }
-
 .timeline-row-wrap {
   display: flex;
   position: relative;
   height: auto;
 }
 .timeline-row-label {
-  height: auto; /* Tinggi disesuaikan dengan konten */
+  height: auto;
   display: flex;
   align-items: center;
   position: sticky;
@@ -507,7 +545,6 @@ onMounted(() => {
 .dark .timeline-row-label {
   border-bottom-color: #4b5563;
 }
-
 .timeline-row-content {
   flex-grow: 1;
   position: relative;
@@ -517,23 +554,6 @@ onMounted(() => {
 .dark .timeline-row-content {
   border-left-color: #4b5563;
 }
-.timeline-row-label-container {
-  flex-shrink: 0;
-  min-width: 200px;
-  max-width: 200px;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background-color: #fff;
-}
-.dark .timeline-row-label-container {
-  background-color: #1f2937;
-}
-.timeline-header-wrap {
-  display: flex;
-  flex-grow: 1;
-}
-
 .timeline-event-bar {
   position: absolute;
   height: 28px;
@@ -545,6 +565,7 @@ onMounted(() => {
   cursor: pointer;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out;
   z-index: 5;
+  color: white;
 }
 .timeline-event-bar:hover {
   transform: scaleY(1.1);
@@ -579,5 +600,18 @@ onMounted(() => {
 .timeline-event-bar:hover .event-tooltip {
   opacity: 1;
   visibility: visible;
+}
+.fc-daygrid-event-harness {
+  cursor: pointer;
+}
+.dark .fc-daygrid-day {
+  background-color: #1f2937;
+}
+.dark .fc-daygrid-day-number {
+  color: #e5e7eb;
+}
+.dark .fc-col-header-cell {
+  background-color: #111827;
+  color: #e5e7eb;
 }
 </style>
