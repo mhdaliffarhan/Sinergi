@@ -68,6 +68,7 @@ import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormProject from '@/components/project/FormProject.vue';
 import TabelProject from '@/components/project/TabelProject.vue';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const projects = ref([]);
@@ -89,7 +90,7 @@ const updateViewMode = () => {
 const fetchProjects = async (query = '') => {
   isLoading.value = true;
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/projects', {
+    const response = await axios.get(`${baseURL}/api/projects`, {
       params: { q: query }
     });
     projects.value = response.data.items;
@@ -103,7 +104,7 @@ const fetchProjects = async (query = '') => {
 
 const fetchTeams = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+    const response = await axios.get(`${baseURL}/api/teams/active`);
     teamList.value = response.data.map(team => ({
       id: team.id,
       namaTim: team.namaTim 
@@ -132,7 +133,7 @@ onMounted(() => {
 
 const handleProjectSubmit = async (formData) => {
   try {
-    await axios.post('http://127.0.0.1:8000/api/projects', formData);
+    await axios.post(`${baseURL}/api/projects`, formData);
     toast.success("Project berhasil dibuat!");
     closeModal();
     await fetchProjects();

@@ -1,7 +1,7 @@
 <template>
   <div class="container mx-auto p-4 sm:p-6 lg:p-8">
     <div v-if="isLoading" class="flex justify-center items-center h-64">
-      <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+      <svg class="animate-spin -ml-1 mr-3 h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
       </svg>
@@ -99,11 +99,12 @@
               :slides-per-view="1"
               :space-between="16"
               :pagination="{ clickable: true }"
-              :navigation="true"
               :breakpoints="{
+                
+                510: { slidesPerView: 1, spaceBetween: 20 },
                 640: { slidesPerView: 2, spaceBetween: 20 },
-                768: { slidesPerView: 3, spaceBetween: 30 },
-                1024: { slidesPerView: 4, spaceBetween: 40 }
+                1115: { slidesPerView: 3, spaceBetween: 20 },
+                1300: { slidesPerView: 4, spaceBetween: 20 }
               }"
               class="my-swiper"
             >
@@ -122,13 +123,13 @@
           <div ref="calendar" class="w-full"></div>
         </section>
 
-        <section class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mt-8">
+        <!-- <section class="bg-white dark:bg-gray-800 shadow-lg rounded-lg p-6 mt-8">
           <h2 class="text-xl font-semibold mb-4 text-gray-800 dark:text-gray-200">Progres Dokumen Wajib Saya</h2>
           <DokumenProgressSection 
             :dokumen-wajib="dokumenWajibSaya" 
             @go-to-aktivitas="goToAktivitas" 
           />
-        </section>
+        </section> -->
       </div>
     </div>
   </div>
@@ -157,6 +158,7 @@ import ModalAktivitas from '@/components/aktivitas/ModalAktivitas.vue';
 import AktivitasCard from '@/components/aktivitas/AktivitasCard.vue';
 import { format } from 'date-fns';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const router = useRouter();
 const toast = useToast();
@@ -261,10 +263,10 @@ const fetchDashboardData = async () => {
 
     if (isKepalaKantor.value) {
       const [aktivitasRes, teamsRes, usersRes, aktivitasKepalaRes] = await Promise.all([
-        axios.get('http://127.0.0.1:8000/api/kalender/events'),
-        axios.get('http://127.0.0.1:8000/api/teams/active'),
-        axios.get('http://127.0.0.1:8000/api/users', { params: { limit: 10000 } }),
-        axios.get('http://127.0.0.1:8000/api/aktivitas/penting')
+        axios.get(`${baseURL}/api/kalender/events`),
+        axios.get(`${baseURL}/api/teams/active`),
+        axios.get(`${baseURL}/api/users`, { params: { limit: 10000 } }),
+        axios.get(`${baseURL}/api/aktivitas/penting`)
       ]);
       allAktivitas.value = aktivitasRes.data;
       allTeams.value = teamsRes.data;
@@ -276,9 +278,9 @@ const fetchDashboardData = async () => {
       const teamId = selectedTeamId.value;
       if (teamId) {
         const [aktivitasRes, teamDetailsRes, dokumenRes] = await Promise.all([
-          axios.get(`http://127.0.0.1:8000/api/kalender/events?team_ids=${teamId}`),
-          axios.get(`http://127.0.0.1:8000/api/teams/${teamId}/details`),
-          axios.get(`http://127.0.0.1:8000/api/teams/${teamId}/dokumen-wajib-team`)
+          axios.get(`${baseURL}/api/kalender/events?team_ids=${teamId}`),
+          axios.get(`${baseURL}/api/teams/${teamId}/details`),
+          axios.get(`${baseURL}/api/teams/${teamId}/dokumen-wajib-team`)
         ]);
         allAktivitas.value = aktivitasRes.data;
         team.value = teamDetailsRes.data;
@@ -287,8 +289,8 @@ const fetchDashboardData = async () => {
       }
     } else { // Anggota Tim
       const [aktivitasRes, dokumenRes] = await Promise.all([
-        axios.get(`http://127.0.0.1:8000/api/users/${user.id}/aktivitas`),
-        axios.get(`http://127.0.0.1:8000/api/users/${user.id}/dokumen-wajib`)
+        axios.get(`${baseURL}/api/users/${user.id}/aktivitas`),
+        axios.get(`${baseURL}/api/users/${user.id}/dokumen-wajib`)
       ]);
       allAktivitas.value = aktivitasRes.data;
       dokumenWajibSaya.value = dokumenRes.data;
@@ -347,7 +349,7 @@ const renderCalendar = (eventsData) => {
 
 const openModal = async (aktivitasId) => {
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
+    const response = await axios.get(`${baseURL}/api/aktivitas/${aktivitasId}`);
     selectedAktivitas.value = response.data;
     isModalOpen.value = true;
   } catch (error) {
@@ -376,7 +378,6 @@ const formatPeriode = (start, end) => {
   return format(startDate, 'd MMMM yyyy', { locale: id });
 };
 
-// Logika untuk dropdwon Ketua Tim
 watch(() => authStore.user?.ketuaTimAktif, (newVal) => {
   if (newVal && newVal.length > 0) {
     selectedTeamId.value = newVal[0].id;
@@ -405,3 +406,178 @@ onMounted(() => {
   }, { immediate: true });
 });
 </script>
+
+<style>
+/* Style Umum */
+.fc-daygrid-event:hover {
+  cursor: pointer;
+  transform: scale(1.02);
+  transition: transform 0.2s ease-in-out;
+  filter: brightness(1.1);
+}
+.fc .fc-button-primary {
+  background-color: #2563eb;
+  border-color: #2563eb;
+  transition: background-color 0.2s;
+}
+.fc .fc-button-primary:hover {
+  background-color: #1d4ed8;
+  border-color: #1d4ed8;
+}
+.fc .fc-button-primary:active {
+  background-color: #1e40af !important;
+  border-color: #1e40af !important;
+}
+.fc .fc-button-primary:focus {
+  box-shadow: none;
+}
+.dark .fc .fc-col-header-cell-cushion,
+.dark .fc .fc-daygrid-day-number,
+.dark .fc .fc-toolbar-title,
+.dark .fc a:not(.fc-event) {
+  color: #e5e7eb;
+}
+.dark .fc-daygrid-event .fc-event-title {
+  color: #ffffff;
+}
+
+/* Style Timeline Custom yang disempurnakan */
+.timeline-scroll-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.timeline-header-label-col, .timeline-row-label {
+  flex-shrink: 0;
+  width: 200px;
+  max-width: 200px;
+  line-height: 50px;
+  white-space: nowrap;
+  padding: 0 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  border-right: 1px solid #e5e7eb;
+  background-color: #fff;
+}
+.dark .timeline-header-label-col, .dark .timeline-row-label {
+  border-right-color: #4b5563;
+  background-color: #1f2937;
+  color: #e5e7eb;
+}
+
+.timeline-header-day-col {
+  flex-shrink: 0;
+  min-width: 50px;
+  max-width: 50px;
+  text-align: center;
+  border-left: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 0.25rem 0.5rem;
+  background-color: #fff;
+}
+.dark .timeline-header-day-col {
+  border-left-color: #4b5563;
+  border-bottom-color: #4b5563;
+  background-color: #1f2937;
+}
+
+.bg-weekend-light {
+  background-color: #f3f4f6; /* gray-100 */
+}
+.dark .bg-weekend-dark {
+  background-color: #374151; /* gray-700 */
+}
+
+.timeline-row-wrap {
+  display: flex;
+  position: relative;
+  height: auto;
+}
+.timeline-row-label {
+  height: auto; /* Tinggi disesuaikan dengan konten */
+  display: flex;
+  align-items: center;
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 0 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+.dark .timeline-row-label {
+  border-bottom-color: #4b5563;
+}
+
+.timeline-row-content {
+  flex-grow: 1;
+  position: relative;
+  min-height: 50px;
+  border-left: 1px solid #e5e7eb;
+}
+.dark .timeline-row-content {
+  border-left-color: #4b5563;
+}
+.timeline-row-label-container {
+  flex-shrink: 0;
+  min-width: 200px;
+  max-width: 200px;
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background-color: #fff;
+}
+.dark .timeline-row-label-container {
+  background-color: #1f2937;
+}
+.timeline-header-wrap {
+  display: flex;
+  flex-grow: 1;
+}
+
+.timeline-event-bar {
+  position: absolute;
+  height: 28px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  cursor: pointer;
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out;
+  z-index: 5;
+}
+.timeline-event-bar:hover {
+  transform: scaleY(1.1);
+  filter: brightness(1.2);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+  z-index: 6;
+}
+.event-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  color: white;
+}
+.event-tooltip {
+  position: absolute;
+  bottom: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #333;
+  color: white;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+}
+.timeline-event-bar:hover .event-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+</style>

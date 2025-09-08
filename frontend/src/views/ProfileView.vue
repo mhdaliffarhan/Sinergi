@@ -91,6 +91,7 @@ import ProfilePicture from "@/components/profile/ProfilePicture.vue";
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from 'vue-toastification';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const user = ref({
@@ -127,7 +128,7 @@ const updatePassword = async () => {
     return;
   }
   try {
-    await axios.put(`http://127.0.0.1:8000/api/users/${authStore.user.id}/password`, {
+    await axios.put(`${baseURL}/api/users/${authStore.user.id}/password`, {
       oldPassword: form.value.oldPassword,
       newPassword: form.value.newPassword
     });

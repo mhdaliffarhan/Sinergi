@@ -106,6 +106,7 @@ class ProjectInUser(CamelModel):
     id: int
     nama_project: str
     project_leader_id: Optional[int] = None
+    project_leader: Optional[UserInTeam] = None
     
 # Tambahan: Skema untuk aktivitas yang akan digunakan di dalam User
 class AktivitasInUser(CamelModel):
@@ -202,6 +203,7 @@ class TeamInProject(CamelModel):
     nama_tim: str
     ketua_tim_id: Optional[int] = None
     warna: Optional[str] = None
+    ketua_tim: Optional[UserInTeam] = None
 
 class ProjectInTeam(CamelModel):
     id: int

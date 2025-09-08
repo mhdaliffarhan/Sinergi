@@ -9,7 +9,6 @@
         
         <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div class="md:mb-0">
-            <p class="text-sm text-blue-500 font-semibold">{{ aktivitas.team.namaTim}}</p>
             <h1 class="text-2xl sm:text-3xl font-bold text-orange-600 dark:text-orange-500 mt-1">{{ aktivitas.namaAktivitas }}</h1>
             <p class="mt-2 text-base text-gray-500 dark:text-gray-400 max-w-3xl">{{ aktivitas.deskripsi }}</p>
           </div>
@@ -28,11 +27,12 @@
               <transition enter-active-class="transition ease-out duration-100" enter-from-class="transform opacity-0 scale-95" enter-to-class="transform opacity-100 scale-100" leave-active-class="transition ease-in duration-75" leave-from-class="transform opacity-100 scale-100" leave-to-class="transform opacity-0 scale-95">
                 <MenuItems class="absolute right-0 z-10 mt-2 w-56 origin-top-right rounded-md bg-white dark:bg-gray-800 shadow-lg ring-1 ring-inset ring-gray-300 dark:ring-gray-600 focus:outline-none">
                   <div class="py-1"> 
-                    <MenuItem v-slot="{ active }">
+                    <!-- COOMING SOON -->
+                    <!-- <MenuItem v-slot="{ active }">
                       <button @click="handleDownloadAll" :class="[active ? 'bg-green-100 dark:bg-green-700' : '', 'text-green-700 dark:text-green-200 block w-full text-left px-4 py-2 text-sm']">
                         Unduh Semua File     
                       </button>
-                    </MenuItem>
+                    </MenuItem> -->
                     <MenuItem v-slot="{ active }" v-if="isAnggotaTim">
                       <button @click="openEditModal" :class="[active ? 'bg-blue-100 dark:bg-blue-700' : '', 'text-blue-700 dark:text-blue-200 block w-full text-left px-4 py-2 text-sm']">
                         Edit Aktivitas
@@ -50,17 +50,45 @@
           </div>
         </div>
 
-        <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
-          <div class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700">
-            <span class="text-lg">🗓️</span>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ formattedWaktuPelaksanaan.tanggal }}</span>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex items-center gap-4 transition-transform hover:scale-105 duration-300">
+            <span class="text-3xl">🗓️</span>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Pelaksanaan</p>
+              <span class="text-base font-bold text-gray-900 dark:text-white">{{ formattedWaktuPelaksanaan.tanggal }}</span>
+              <p v-if="formattedWaktuPelaksanaan.waktu" class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                {{ formattedWaktuPelaksanaan.waktu }}
+              </p>
+            </div>
           </div>
-          <div v-if="aktivitas.jamMulai" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-100 dark:bg-gray-700">
-            <span class="text-lg">🕒</span>
-            <span class="text-sm font-medium text-gray-700 dark:text-gray-200">{{ formattedWaktuPelaksanaan.waktu }}</span>
+          
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex items-center gap-4 transition-transform hover:scale-105 duration-300">
+            <span class="text-3xl">👥</span>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Tim Penyelenggara</p>
+              <router-link :to="{ name: 'team-detail', params: { id: aktivitas.team?.id } }" class="text-base font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                {{ aktivitas.team?.namaTim || 'Tidak ada tim' }}
+              </router-link>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Ketua: {{ aktivitas.team?.ketuaTim?.namaLengkap || '-' }}
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 flex items-center gap-4 transition-transform hover:scale-105 duration-300">
+            <span class="text-3xl">💼</span>
+            <div>
+              <p class="text-sm text-gray-500 dark:text-gray-400">Project Terkait</p>
+              <router-link :to="{ name: 'project-detail', params: { id: aktivitas.project?.id } }" class="text-base font-bold text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
+                {{ aktivitas.project?.namaProject || 'Tidak ada proyek' }}
+              </router-link>
+              <p class="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                Leader: {{ aktivitas.project?.projectLeader?.namaLengkap || '-' }}
+              </p>
+            </div>
           </div>
         </div>
-        
+
         <div class="mt-4 border-t border-gray-200 dark:border-gray-700 pt-4">
           <h2 class="text-lg font-semibold text-gray-800 dark:text-white mb-2">Anggota Aktivitas</h2>
           <div v-if="aktivitas.users && aktivitas.users.length > 0" class="flex flex-wrap -space-x-2">
@@ -95,15 +123,15 @@
           <div v-if="aktivitas.daftarDokumenWajib && aktivitas.daftarDokumenWajib.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <ChecklistItem
               v-for="doc in aktivitas.daftarDokumenWajib"
-                :key="doc.id"
-                :item="doc"
-                :isKetuaTim="isKetuaTim"
-                :isAnggotaTim="isAnggotaTim"
-                :isProjectLeader="isProjectLeader"
-                @unggah="handleUploadRequest"
-                @hapus="confirmDeleteDokumen"
-                @preview="handlePreviewRequest"
-                @cek="handleCheckDoc"
+              :key="doc.id"
+              :item="doc"
+              :isKetuaTim="isKetuaTim"
+              :isAnggotaTim="isAnggotaTim"
+              :isProjectLeader="isProjectLeader"
+              @unggah="handleUploadRequest"
+              @hapus="confirmDeleteDokumen"
+              @preview="handlePreviewRequest"
+              @cek="handleCheckDoc"
             />
           </div>
           <div v-else>
@@ -112,9 +140,9 @@
         </div>
 
         <div>
-           <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+          <div class="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white">Link & Dokumen Lainnya</h2>
-            <button  v-if="isAnggotaTim" @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
+            <button v-if="isAnggotaTim" @click="openLinkModal" class="px-3 py-1.5 text-sm font-medium text-white dark:text-gray-200 bg-blue-600 dark:bg-blue-700 rounded-md hover:bg-blue-700 dark:hover:bg-blue-600 w-full sm:w-auto">+ Tambah Link</button>
           </div>
           <div v-if="otherDocuments.length > 0" class="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-200 dark:divide-gray-700">
             <DokumenItem 
@@ -129,7 +157,7 @@
           <div v-else>
             <p class="text-sm text-center text-gray-500 dark:text-gray-400 py-4">Tidak ada Link & Dokumen Lainnya untuk aktivitas ini.</p>
           </div>
-          <DropzoneUploader  v-if="isAnggotaTim" @file-selected="handleFileReadyForUpload" class="mt-4" />
+          <DropzoneUploader v-if="isAnggotaTim" @file-selected="handleFileReadyForUpload" class="mt-4" />
         </div>
       </div>
       <div v-else>
@@ -172,6 +200,7 @@ import ModalKonfirmasiGantiFile from '@/components/aktivitas/ModalKonfirmasiGant
 import FilePreviewModal from '@/components/FilePreviewModal.vue';
 
 // --- DEKLARASI STATE & INISIALISASI ---
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -265,7 +294,7 @@ const getProfileUrl = (path) => {
   // Jika path dimulai dengan './', tambahkan base URL.
   // Ini penting agar gambar bisa diakses dari backend.
   if (path.startsWith('./')) {
-    return `http://127.0.0.1:8000/${path.replace('./', '')}`;
+    return `${baseURL}/${path.replace('./', '')}`;
   }
   return path;
 };
@@ -302,7 +331,7 @@ const formattedWaktuPelaksanaan = computed(() => {
 const fetchDetailAktivitas = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
+    const response = await axios.get(`${baseURL}/api/aktivitas/${aktivitasId}`);
     aktivitas.value = response.data;
     console.log("Aktivitas : ", aktivitas.value);
     breadcrumbItems.value[2] = {
@@ -321,7 +350,7 @@ const fetchDetailAktivitas = async () => {
 
 const fetchTeams = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+    const response = await axios.get(`${baseURL}/api/teams/active`);
     teamList.value = response.data.map(team => ({
       id: team.id,
       namaTim: team.namaTim 
@@ -344,7 +373,7 @@ const fetchTeams = async () => {
 
 const fetchProjects = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/projects');
+    const response = await axios.get(`${baseURL}/api/projects`);
     projectList.value = response.data.items.map(project => ({
       id: project.id,
       namaProject: project.namaProject,
@@ -372,8 +401,7 @@ const handleUpdateActivity = async (formData) => {
   const nullableFields = ['tanggalMulai', 'tanggalSelesai', 'jamMulai', 'jamSelesai'];
   nullableFields.forEach(field => { if (payload[field] === '') payload[field] = null; });
   try {
-    console.log('Data :', payload);
-    await axios.put(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`, payload);
+    await axios.put(`${baseURL}/api/aktivitas/${aktivitasId}`, payload);
     toast.success("Aktivitas berhasil diperbarui!");
     closeEditModal();
     await fetchDetailAktivitas();
@@ -386,7 +414,7 @@ const handleUpdateActivity = async (formData) => {
 const confirmDeleteActivity = () => { if (window.confirm("Yakin ingin hapus aktivitas ini?")) deleteActivity(); };
 const deleteActivity = async () => {
   try {
-    await axios.delete(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}`);
+    await axios.delete(`${baseURL}/api/aktivitas/${aktivitasId}`);
     toast.success("Aktivitas berhasil dihapus.");
     router.push('/aktivitas/daftar');
   } catch (error) { 
@@ -404,7 +432,7 @@ const deleteActivity = async () => {
 const confirmDeleteDokumen = (dokumenId) => { if (window.confirm("Yakin ingin hapus dokumen ini?")) deleteDokumen(dokumenId); };
 const deleteDokumen = async (dokumenId) => {
   try {
-    await axios.delete(`http://127.0.0.1:8000/api/dokumen/${dokumenId}`);
+    await axios.delete(`${baseURL}/api/dokumen/${dokumenId}`);
     toast.success("Dokumen berhasil dihapus.");
     await fetchDetailAktivitas();
   } catch (error) {
@@ -417,7 +445,7 @@ const openLinkModal = () => { isLinkModalOpen.value = true; };
 const closeLinkModal = () => { isLinkModalOpen.value = false; };
 const handleLinkSubmit = async (formData) => {
   try {
-    await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/link`, formData);
+    await axios.post(`${baseURL}/api/aktivitas/${aktivitasId}/link`, formData);
     toast.success("Link berhasil ditambahkan.");
     closeLinkModal();
     await fetchDetailAktivitas();
@@ -438,7 +466,7 @@ const handleFileUploadSubmit = async (formData) => {
     data.append('checklist_item_id', formData.checklistItemId);
   }
   try {
-    await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/dokumen`, data);
+    await axios.post(`${baseURL}/api/aktivitas/${aktivitasId}/dokumen`, data);
     toast.success("File berhasil diunggah.");
     closeFileModal();
     await fetchDetailAktivitas();
@@ -468,8 +496,8 @@ const handleFileSelectedForChecklist = async (event) => {
   data.append('checklist_item_id', checklistItemIdToUpload.value);
   console.log('data : ',data);
   try {
-   await axios.post(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/dokumen`, data);
-     
+    await axios.post(`${baseURL}/api/aktivitas/${aktivitasId}/dokumen`, data);
+      
     toast.success("Dokumen berhasil diunggah & checklist diperbarui!");
     await fetchDetailAktivitas();
   } catch (error) {
@@ -501,7 +529,7 @@ const handleReplaceFileSelected = async (event) => {
   data.append('file', newFile);
   data.append('old_file_action', itemToReplace.value.old_file_action);
   try {
-    await axios.post(`http://127.0.0.1:8000/api/checklist/${itemToReplace.value.id}/replace`, data);
+    await axios.post(`${baseURL}/api/checklist/${itemToReplace.value.id}/replace`, data);
     toast.success("File berhasil diganti!");
     await fetchDetailAktivitas();
   } catch (error) {
@@ -526,7 +554,7 @@ const closePreviewModal = () => {
 // Fungsi ini dipanggil saat event @preview dari DokumenItem diterima
 const handlePreviewRequest = async (dokumen) => {
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/dokumen/${dokumen.id}/download`, {
+    const response = await axios.get(`${baseURL}/api/dokumen/${dokumen.id}/download`, {
       responseType: 'blob',
     });
 
@@ -561,7 +589,7 @@ const handleDownloadAll = async () => {
     const toastId = toast.info("Sedang mempersiapkan file ZIP, mohon tunggu...", { timeout: false });
     
     try {
-      const response = await axios.get(`http://127.0.0.1:8000/api/aktivitas/${aktivitasId}/download-all`, {
+      const response = await axios.get(`${baseURL}/api/aktivitas/${aktivitasId}/download-all`, {
         responseType: 'blob',
         timeout: 60000,
       });
@@ -597,7 +625,7 @@ const handleDownloadAll = async () => {
 
 const handleCheckDoc = async ({ id, value }) => {
   try {
-    const { data } = await axios.patch(`http://127.0.0.1:8000/api/daftar_dokumen/${id}/cek`, {
+    const { data } = await axios.patch(`${baseURL}/api/daftar_dokumen/${id}/cek`, {
       statusPengecekan: value
     })
 

@@ -149,6 +149,7 @@ import AktivitasCard from '@/components/aktivitas/AktivitasCard.vue';
 import { id } from 'date-fns/locale';
 
 // --- DEKLARASI STATE & INISIALISASI ---
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -190,7 +191,7 @@ const isKetuaTim = computed(() => {
 const fetchDetailProject = async () => {
   isLoading.value = true;
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/projects/${projectId}`);
+    const response = await axios.get(`${baseURL}/api/projects/${projectId}`);
     project.value = response.data;
     breadcrumbItems.value[2].text = project.value?.namaProject ?? 'Detail Project';
     console.log("Detail Project : ", response.data);
@@ -205,7 +206,7 @@ const fetchDetailProject = async () => {
 
 const fetchTeams = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+    const response = await axios.get(`${baseURL}/api/teams/active`);
     teamList.value = response.data.map(team => ({
       id: team.id,
       namaTim: team.namaTim 
@@ -226,7 +227,7 @@ const openEditModal = () => { isEditModalOpen.value = true; };
 const closeEditModal = () => { isEditModalOpen.value = false; };
 const handleUpdateProject = async (formData) => {
   try {
-    await axios.put(`http://127.0.0.1:8000/api/projects/${projectId}`, formData);
+    await axios.put(`${baseURL}/api/projects/${projectId}`, formData);
     toast.success("Project berhasil diperbarui!");
     closeEditModal();
     await fetchDetailProject();
@@ -242,7 +243,7 @@ const confirmDeleteProject = () => {
 
 const deleteProject = async () => {
   try {
-    await axios.delete(`http://127.0.0.1:8000/api/projects/${projectId}`);
+    await axios.delete(`${baseURL}/api/projects/${projectId}`);
     toast.success("Project berhasil dihapus.");
     router.push('/project');
   } catch (error) { 
@@ -256,7 +257,7 @@ const confirmDeleteDokumen = (dokumenId) => {
 };
 const deleteDokumen = async (dokumenId) => {
   try {
-    await axios.delete(`http://127.0.0.1:8000/api/dokumen/${dokumenId}`);
+    await axios.delete(`${baseURL}/api/dokumen/${dokumenId}`);
     toast.success("Dokumen berhasil dihapus.");
     await fetchDetailProject();
   } catch (error) {
@@ -269,7 +270,7 @@ const openLinkModal = () => { isLinkModalOpen.value = true; };
 const closeLinkModal = () => { isLinkModalOpen.value = false; };
 const handleLinkSubmit = async (formData) => {
   try {
-    await axios.post(`http://127.0.0.1:8000/api/projects/${projectId}/links`, formData);
+    await axios.post(`${baseURL}/api/projects/${projectId}/links`, formData);
     toast.success("Link berhasil ditambahkan.");
     closeLinkModal();
     await fetchDetailProject();
@@ -293,7 +294,7 @@ const handleFileUploadSubmit = async (formData) => {
   data.append('keterangan', formData.keterangan);
   try {
     console.log("Data : ", data);
-    await axios.post(`http://127.0.0.1:8000/api/projects/${projectId}/dokumen`, data);
+    await axios.post(`${baseURL}/api/projects/${projectId}/dokumen`, data);
     toast.success("File berhasil diunggah.");
     closeFileModal();
     await fetchDetailProject();
@@ -314,7 +315,7 @@ const closePreviewModal = () => {
 
 const handlePreviewRequest = async (dokumen) => {
   try {
-    const response = await axios.get(`http://127.0.0.1:8000/api/dokumen/${dokumen.id}/download`, {
+    const response = await axios.get(`${baseURL}/api/dokumen/${dokumen.id}/download`, {
       responseType: 'blob',
     });
 
@@ -352,7 +353,7 @@ const handleDownloadAll = async () => {
     const toastId = toast.info("Sedang mempersiapkan file ZIP, mohon tunggu...", { timeout: false });
     
     try {
-      const response = await axios.get(`http://127.0.0.1:8000/api/projects/${projectId}/download-all`, {
+      const response = await axios.get(`${baseURL}/api/projects/${projectId}/download-all`, {
         responseType: 'blob',
         timeout: 60000,
       });

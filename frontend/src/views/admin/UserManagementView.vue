@@ -90,6 +90,7 @@ import FormUser from '@/components/admin/FormUser.vue';
 import Pagination from '@/components/Pagination.vue';
 import { useAuthStore } from '@/stores/auth';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const users = ref([]);
@@ -112,7 +113,7 @@ const fetchData = async () => {
     const skip = (currentPage.value - 1) * itemsPerPage.value;
 
     // Ambil data pengguna dengan parameter skip & limit
-    const usersResponse = await axios.get('http://127.0.0.1:8000/api/users', {
+    const usersResponse = await axios.get(`${baseURL}/api/users`, {
       params: {
         skip: skip,
         limit: itemsPerPage.value,
@@ -124,11 +125,11 @@ const fetchData = async () => {
 
     // Ambil data peran dan jabatan (hanya jika belum ada)
     if (sistemRoles.value.length === 0) {
-      const rolesResponse = await axios.get('http://127.0.0.1:8000/api/sistem-roles');
+      const rolesResponse = await axios.get('`${baseURL}/api/sistem-roles');
       sistemRoles.value = rolesResponse.data;
     }
     if (jabatanList.value.length === 0) {
-      const jabatanResponse = await axios.get('http://127.0.0.1:8000/api/jabatan');
+      const jabatanResponse = await axios.get('`${baseURL}/api/jabatan');
       jabatanList.value = jabatanResponse.data;
     }
   } catch (error) {
@@ -176,7 +177,7 @@ const closeModal = () => {
 
 const deleteUser = async (userId, username) => {
   try {
-    await axios.delete(`http://127.0.0.1:8000/api/users/${userId}`);
+    await axios.delete(`${baseURL}/api/users/${userId}`);
     toast.success(`Pengguna "${username}" berhasil dihapus.`);
     await fetchData();
   } catch (error) {
@@ -207,10 +208,10 @@ const handleUserSubmit = async (formData) => {
   try {
     if (isEditMode.value) {
       console.log('Data :', payload);
-      await axios.put(`http://127.0.0.1:8000/api/users/${userToEdit.value.id}`, payload);
+      await axios.put(`${baseURL}/api/users/${userToEdit.value.id}`, payload);
       toast.success(`Pengguna "${payload.username}" berhasil diperbarui.`);
     } else {
-      await axios.post('http://127.0.0.1:8000/api/users', payload);
+      await axios.post(`${baseURL}/api/users`, payload);
       toast.success(`Pengguna "${payload.username}" berhasil dibuat.`);
     }
     closeModal();

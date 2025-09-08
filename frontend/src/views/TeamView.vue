@@ -70,6 +70,7 @@ import TabelTeam from '@/components/team/TabelTeam.vue';
 import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormTim from '@/components/admin/FormTim.vue';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const teams = ref([]);
@@ -90,7 +91,7 @@ const updateViewMode = () => {
 const fetchTeams = async (query = '') => {
   isLoading.value = true;
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/teams/active', {
+    const response = await axios.get(`${baseURL}/api/teams/active`, {
       params: { q: query }
     });
     // Menyesuaikan dengan struktur ProjectView.vue
@@ -118,7 +119,7 @@ onMounted(() => {
 
 const handleTeamSubmit = async (formData) => {
   try {
-    await axios.post('http://127.0.0.1:8000/api/teams', formData);
+    await axios.post(`${baseURL}/api/teams`, formData);
     toast.success("Tim berhasil dibuat!");
     closeModal();
     await fetchTeams();

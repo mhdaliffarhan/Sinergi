@@ -14,13 +14,13 @@
       </div>
     </div>
     
-    <div class="mt-4">
+    <div v-if="isDashboard" class="mt-4">
       <router-link :to="{ name: 'project-detail', params: { id: aktivitas.project?.id } }" class="text-sm font-medium transition-colors hover:text-blue-600 dark:hover:text-blue-400" :style="{ color: aktivitas.team?.warna || 'inherit' }">
         {{ aktivitas.project?.namaProject || 'Tidak ada Project' }}
       </router-link>
     </div>
 
-    <div class="mt-2 text-sm text-gray-500 dark:text-gray-400 space-y-1">
+    <div v-if="isDashboard" class="mt-2 text-sm text-gray-500 dark:text-gray-400 space-y-1">
       <div class="flex items-center gap-2">
         <span class="text-gray-400">🗓️</span>
         <span>{{ formatDate(aktivitas.tanggalMulai, aktivitas.tanggalSelesai) }}</span>
@@ -85,6 +85,10 @@ const props = defineProps({
     type: Object,
     required: true,
   },
+  isDashboard: {
+    type: Boolean,
+    default: false, 
+  }
 });
 
 const router = useRouter();

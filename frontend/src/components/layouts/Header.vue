@@ -5,7 +5,7 @@
         <button @click="uiStore.toggleSidebar" class="p-2 rounded-full text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
-        <router-link to="/aktivitas/dashboard" class="flex items-center">
+        <router-link to="/dashboard" class="flex items-center">
           <img src="/logo-tulisan.png" alt="Logo SINERGI" class="pt-2 w-32 h-full object-contain">
         </router-link>
       </div>
@@ -70,6 +70,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ref, onMounted } from 'vue';
 import { Menu, MenuButton, MenuItems, MenuItem } from '@headlessui/vue'
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const uiStore = useUIStore();
 const authStore = useAuthStore();
 
@@ -118,7 +119,7 @@ onMounted(() => {
 const getProfileUrl = (path) => {
   if (!path) return "/profile-default.png";
   if (path.startsWith("./")) {
-    return `http://127.0.0.1:8000/${path.replace("./", "")}`;
+    return `${baseURL}/${path.replace("./", "")}`;
   }
   return path;
 };

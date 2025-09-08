@@ -4,7 +4,9 @@ import axios from 'axios';
 import router from '@/router';
 import { useToast } from 'vue-toastification';
 
+
 const toast = useToast();
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token'));
@@ -47,12 +49,12 @@ export const useAuthStore = defineStore('auth', () => {
       const params = new URLSearchParams();
       params.append('username', username);
       params.append('password', password);
-      const response = await axios.post('http://127.0.0.1:8000/token', params);
+      const response = await axios.post(`${baseURL}/token`, params);
 
       setToken(response.data.accessToken);
 
       await fetchUser();
-      await router.push('/aktivitas/dashboard');
+      await router.push('/dashboard');
       return true;
     } catch (error) {
       removeToken();
@@ -64,7 +66,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (!token.value) return;
     try {
       // Tidak perlu lagi menambahkan header secara manual di sini
-      const response = await axios.get('http://127.0.0.1:8000/users/me');
+      const response = await axios.get(`${baseURL}/users/me`);
       user.value = response.data;
     } catch (error) {
       if (error.response?.status === 401) {

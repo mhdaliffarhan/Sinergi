@@ -844,9 +844,7 @@ def create_dokumen_untuk_aktivitas(
         if checklist_item_id:
             db_checklist_item = db.query(models.DaftarDokumen).filter(models.DaftarDokumen.id == checklist_item_id).first()
             if db_checklist_item:
-                # Perhatikan perubahan ini, karena Anda menggunakan schema Pydantic,
-                # field `status` di model `DaftarDokumen` mungkin tidak ada, gunakan `status_pengecekan`
-                db_checklist_item.status_pengecekan = True 
+                db_checklist_item.status_pengecekan = False
                 db_checklist_item.dokumen_id = db_dokumen.id
                 db.commit()
         

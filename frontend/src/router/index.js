@@ -37,6 +37,12 @@ const router = createRouter({
       meta: { requiresAuth: true }
     },
     {
+      path: '/kalender',
+      name: 'kalender',
+      component: () => import('../views/KalenderView.vue'),
+      meta: { requiredAuth: true }
+    },
+    {
       path: '/team',
       name: 'team',
       component: TeamView,
@@ -77,12 +83,6 @@ const router = createRouter({
       name: 'aktivitas-detail',
       component: () => import('../views/AktivitasDetailView.vue'),
       meta: { requiresAuth: true }
-    },
-    {
-      path: '/kalender-tim',
-      name: 'kalender-tim',
-      component: () => import('../views/KalenderTimView.vue'),
-      meta: { requiredAuth: true }
     },
     {
       path: '/kalender-pegawai',

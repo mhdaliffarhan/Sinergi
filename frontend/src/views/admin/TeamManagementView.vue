@@ -92,6 +92,7 @@ import TeamDetailModal from '@/components/admin/TeamDetailModal.vue';
 import Pagination from '@/components/Pagination.vue';
 import { useAuthStore } from '@/stores/auth';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const teams = ref([]);
@@ -119,13 +120,13 @@ const fetchData = async () => {
     // Ambil data tim dan data semua pengguna secara bersamaan
     const skip = (currentPage.value - 1) * itemsPerPage.value;
     const [teamsRes, usersRes] = await Promise.all([
-      axios.get('http://127.0.0.1:8000/api/teams', {
+      axios.get(`${baseURL}/api/teams`, {
         params: { 
           skip: skip, 
           limit: itemsPerPage.value, 
           search: searchQuery.value }
       }),
-      axios.get('http://127.0.0.1:8000/api/users', { params: { limit: 10000 } }) 
+      axios.get(`${baseURL}/api/users`, { params: { limit: 10000 } }) 
     ]);
 
     teams.value = teamsRes.data.items;
@@ -182,7 +183,7 @@ const closeModal = () => {
 
 const handleTeamCreate = async (formData) => {
   try {
-    await axios.post('http://127.0.0.1:8000/api/teams', formData);
+    await axios.post(`${baseURL}/api/teams`, formData);
     toast.success(`Tim "${formData.namaTim}" berhasil dibuat.`);
     closeModal();
     await fetchData();

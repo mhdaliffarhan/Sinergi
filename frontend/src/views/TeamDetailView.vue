@@ -217,6 +217,7 @@ import ModalWrapper from '@/components/ModalWrapper.vue';
 import { useAuthStore } from '@/stores/auth';
 import TeamDetailModal from '@/components/admin/TeamDetailModal.vue';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
@@ -258,8 +259,8 @@ const fetchTeamDetails = async () => {
   try {
     const teamId = route.params.id;
     const [teamRes, usersRes] = await Promise.all([
-      axios.get(`http://127.0.0.1:8000/api/teams/${teamId}/details`),
-      axios.get('http://127.0.0.1:8000/api/users', { params: { limit: 10000 } })
+      axios.get(`${baseURL}/api/teams/${teamId}/details`),
+      axios.get(`${baseURL}/api/users`, { params: { limit: 10000 } })
     ]);
     team.value = teamRes.data;
     allUsers.value = usersRes.data.items;
@@ -322,7 +323,7 @@ const closeModal = () => { isEditModalOpen.value = false; };
 const handleUpdateTeamDetails = async (formData) => {
   try {
     const payload = { ...formData, id: team.value.id };
-    await axios.put(`http://127.0.0.1:8000/api/teams/${team.value.id}`, payload);
+    await axios.put(`${baseURL}/api/teams/${team.value.id}`, payload);
     toast.success("Detail tim berhasil diperbarui!");
     closeModal();
     await fetchTeamDetails();
@@ -336,7 +337,7 @@ const handleUpdateTeamDetails = async (formData) => {
 // Fungsi untuk menambah anggota tim
 const addMemberToTeam = async (user) => {
   try {
-    const response = await axios.post(`http://127.0.0.1:8000/api/teams/${team.value.id}/members?user_id=${user.id}`);
+    const response = await axios.post(`${baseURL}/api/teams/${team.value.id}/members?user_id=${user.id}`);
     team.value.users = response.data.users; // Update daftar anggota
     toast.success(`"${user.namaLengkap}" berhasil ditambahkan.`);
   } catch (error) {
@@ -347,7 +348,7 @@ const addMemberToTeam = async (user) => {
 // Fungsi untuk menghapus anggota tim
 const removeMemberFromTeam = async (user) => {
   try {
-    const response = await axios.delete(`http://127.0.0.1:8000/api/teams/${team.value.id}/members/${user.id}`);
+    const response = await axios.delete(`${baseURL}/api/teams/${team.value.id}/members/${user.id}`);
     team.value.users = response.data.users; // Update daftar anggota
     toast.success(`"${user.namaLengkap}" berhasil dikeluarkan.`);
   } catch (error) {
@@ -362,7 +363,7 @@ onMounted(() => {
 const getProfileUrl = (path) => {
   if (!path) return "/profile-default.png";
   if (path.startsWith("./")) {
-    return `http://127.0.0.1:8000/${path.replace("./", "")}`;
+    return `${baseURL}/${path.replace("./", "")}`;
   }
   return path;
 };

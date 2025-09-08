@@ -52,6 +52,7 @@ import TeamActivityBarChart from '@/components/charts/TeamActivityBarChart.vue';
 import ProgressLineChart from '@/components/charts/ProgressLineChart.vue';
 import IncompleteActivitiesTable from '@/components/aktivitas/IncompleteActivitiesTable.vue';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const router = useRouter();
 const activities = ref([]);
 
@@ -59,7 +60,7 @@ const selectedTeam = ref('Semua Tim');
 
 const fetchDashboardData = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/aktivitas');
+    const response = await axios.get(`${baseURL}/api/aktivitas`);
     activities.value = response.data; // <-- simpan data
   } catch (error) {
     console.error("Gagal mengambil data untuk dashboard:", error);

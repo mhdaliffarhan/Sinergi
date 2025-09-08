@@ -68,6 +68,7 @@ import ModalWrapper from '@/components/ModalWrapper.vue';
 import FormAktivitas from '@/components/aktivitas/FormAktivitas.vue';
 import TabelAktivitas from '@/components/aktivitas/TabelAktivitas.vue';
 
+const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();
 const toast = useToast();
 const aktivitas = ref([]);
@@ -91,7 +92,7 @@ const updateViewMode = () => {
 const fetchAktivitas = async (query = '') => {
    isLoading.value = true;
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/aktivitas', {
+    const response = await axios.get(`${baseURL}/api/aktivitas`, {
       params: { q: query }
     });
     aktivitas.value = response.data;
@@ -106,7 +107,7 @@ const fetchAktivitas = async (query = '') => {
 
 const fetchTeams = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/teams/active');
+    const response = await axios.get(`${baseURL}/api/teams/active`);
     teamList.value = response.data.map(team => ({
       id: team.id,
       namaTim: team.namaTim 
@@ -130,7 +131,7 @@ const fetchTeams = async () => {
 
 const fetchProjects = async () => {
   try {
-    const response = await axios.get('http://127.0.0.1:8000/api/projects');
+    const response = await axios.get(`${baseURL}/api/projects`);
     projectList.value = response.data.items.map(project => ({
       id: project.id,
       namaProject: project.namaProject,
@@ -173,7 +174,7 @@ const handleActivitySubmit = async (formData) => {
   
   try {
     console.log("Form buat aktivitas : ", payload);
-    await axios.post('http://127.0.0.1:8000/api/aktivitas', payload);
+    await axios.post(`${baseURL}/api/aktivitas`, payload);
     toast.success("Aktivitas berhasil dibuat!");
     closeModal();
     await fetchAktivitas();
