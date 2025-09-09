@@ -620,7 +620,7 @@ watch(filteredActivities, (newActivities) => {
 </script>
 
 
-<style scoped>
+<style>
 /*
   --------------------
   FullCalendar Styles
@@ -629,7 +629,7 @@ watch(filteredActivities, (newActivities) => {
 .fc {
   /* Mengatur variabel warna global untuk FullCalendar */
   --fc-border-color: #e5e7eb; /* gray-200 */
-  --fc-daygrid-event-dot-color: #2563eb; /* blue-600 */
+  --fc-daygrid-event-dot-color: #ffffff; /* blue-600 */
   --fc-page-bg-color: #ffffff; /* white */
   --fc-neutral-bg-color: #f3f4f6; /* gray-100 */
   --fc-neutral-text-color: #6b7280; /* gray-500 */
@@ -638,10 +638,18 @@ watch(filteredActivities, (newActivities) => {
 /* Kustomisasi FullCalendar di Mode Gelap */
 .dark .fc {
   --fc-border-color: #4b5563; /* gray-600 */
-  --fc-daygrid-event-dot-color: #93c5fd; /* blue-300 */
+  --fc-daygrid-event-dot-color: #1f2937; /* blue-300 */
   --fc-page-bg-color: #1f2937; /* gray-800 */
   --fc-neutral-bg-color: #374151; /* gray-700 */
   --fc-neutral-text-color: #d1d5db; /* gray-400 */
+}
+
+.fc-toolbar-title {
+  font-size: 1 rem;
+}
+
+.dark .fc-toolbar-title {
+  color: #fff;
 }
 
 /* Aturan umum untuk tampilan kalender */
@@ -693,6 +701,47 @@ watch(filteredActivities, (newActivities) => {
 }
 .fc-daygrid-event-harness {
   cursor: pointer;
+}
+
+/* Styling tombol FullCalendar */
+.fc-button {
+  background-color: #2563eb !important; /* Warna latar belakang biru */
+  border-color: #2563eb !important; /* Warna border biru */
+  color: #fff !important; /* Warna teks putih */
+  box-shadow: none !important; /* Menghilangkan bayangan default */
+}
+
+/* Mengubah warna saat tombol dihover */
+.fc-button:hover {
+  background-color: #1d4ed8 !important; /* Warna biru lebih gelap saat dihover */
+  border-color: #1d4ed8 !important;
+}
+
+/* Mengubah warna saat tombol ditekan (aktif) */
+.fc-button:focus,
+.fc-button:active {
+  background-color: #1e40af !important; /* Warna biru lebih gelap lagi saat aktif */
+  border-color: #1e40af !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.5) !important; /* Tambahkan ring fokus */
+}
+
+/* Aturan untuk mode gelap */
+.dark .fc-button {
+  background-color: #3b82f6 !important; /* Warna biru yang sedikit berbeda untuk dark mode */
+  border-color: #3b82f6 !important;
+  color: #fff !important;
+}
+
+.dark .fc-button:hover {
+  background-color: #60a5fa !important;
+  border-color: #60a5fa !important;
+}
+
+.dark .fc-button:focus,
+.dark .fc-button:active {
+  background-color: #3b82f6 !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
 }
 
 /*
