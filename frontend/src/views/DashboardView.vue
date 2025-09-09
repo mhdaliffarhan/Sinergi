@@ -136,7 +136,6 @@
       </div>
     </div>
   </div>
-
   <ModalAktivitas v-if="isModalOpen" :aktivitas="selectedAktivitas" @close="closeModal" @go-to-detail="goToAktivitas" />
 </template>
 
@@ -162,6 +161,7 @@ import ModalAktivitas from '@/components/aktivitas/ModalAktivitas.vue';
 import AktivitasCard from '@/components/aktivitas/AktivitasCard.vue';
 import { format } from 'date-fns';
 import timeGridPlugin from '@fullcalendar/timegrid';
+import ModalWrapper from '@/components/ModalWrapper.vue';
 
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 const authStore = useAuthStore();

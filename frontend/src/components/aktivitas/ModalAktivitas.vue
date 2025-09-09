@@ -1,5 +1,5 @@
 <template>
-  <ModalWrapper :show="true" @close="$emit('close')" :title="aktivitas?.namaAktivitas || 'Detail Aktivitas'">
+  <ModalWrapper :show="showModal" @close="handleCloseModal" :title="aktivitas?.namaAktivitas || 'Detail Aktivitas'">
     <div v-if="aktivitas" class="space-y-4">
       <div>
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Tim Terkait</p>
@@ -16,24 +16,23 @@
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Deskripsi</p>
         <p class="mt-1 text-base text-gray-900 dark:text-white">{{ aktivitas.deskripsi }}</p>
       </div>
+      <div class="mt-6 flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
+        <button @click="handleCloseModal" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600">
+          Tutup
+        </button>
+        <button @click="goToDetail" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
+          Lihat Detail
+        </button>
+      </div>
     </div>
     <div v-else class="text-center text-gray-500 dark:text-gray-400">
       Gagal memuat data aktivitas.
-    </div>
-    
-    <div class="mt-6 flex justify-end gap-2 border-t border-gray-200 dark:border-gray-700 pt-4">
-      <button @click="$emit('close')" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600">
-        Tutup
-      </button>
-      <button @click="goToDetail" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors">
-        Lihat Detail
-      </button>
     </div>
   </ModalWrapper>
 </template>
 
 <script setup>
-import { defineProps, defineEmits } from 'vue';
+import { defineProps, defineEmits, computed } from 'vue';
 import { format, isSameDay } from 'date-fns';
 import { id } from 'date-fns/locale';
 import ModalWrapper from '@/components/ModalWrapper.vue';
@@ -46,8 +45,12 @@ const props = defineProps({
   }
 });
 
-const emits = defineEmits(['close']);
+const emits = defineEmits(['close', 'goToDetail']); // Memancarkan event 'goToDetail'
+
 const router = useRouter();
+
+// Gunakan computed property untuk mengelola tampilan modal
+const showModal = computed(() => !!props.aktivitas);
 
 const formatJadwal = (aktivitas) => {
   if (!aktivitas.tanggalMulai) return '-';
@@ -74,8 +77,13 @@ const formatJadwal = (aktivitas) => {
   return `${tanggalTampil} ${waktuTampil}`.trim();
 };
 
+const handleCloseModal = () => {
+  emits('close');
+};
+
 const goToDetail = () => {
-    emits('close'); // Tutup modal sebelum navigasi
-    router.push({ name: 'aktivitas-detail', params: { id: props.aktivitas.id } });
+  emits('close');
+  // Emits the event to the parent so the parent can handle the navigation
+  emits('goToDetail', props.aktivitas.id); 
 };
 </script>

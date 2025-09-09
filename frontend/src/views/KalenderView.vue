@@ -176,7 +176,7 @@
                     'width': `${calculateEventWidth(event)}px`,
                     'top': `${(event.lane - 1) * 38 + 6}px`
                   }"
-                  @click="goToActivityDetail(event.id)"
+                  @click="openModal(event.id)"
                 >
                   <span class="event-title-text">{{ event.title }}</span>
                   <div class="event-tooltip">
@@ -219,7 +219,8 @@ import ModalAktivitas from '@/components/aktivitas/ModalAktivitas.vue';
 const baseURL = import.meta.env.VITE_API_BASE_URL;
 const toast = useToast();
 const router = useRouter();
-const authStore = useAuthStore();
+const isModalOpen = ref(false);
+const selectedAktivitas = ref(null);
 
 const mode = ref("team");
 const selectedTeams = ref([]); 
@@ -235,8 +236,6 @@ const timelineCurrentDate = ref(new Date());
 const calendar = ref(null);
 let fullCalendarInstance = null;
 
-const isKepalaKantor = computed(() => authStore.user?.jabatan?.namaJabatan === 'Kepala Kantor');
-
 const prevMonth = () => { timelineCurrentDate.value = subMonths(timelineCurrentDate.value, 1); };
 const nextMonth = () => { timelineCurrentDate.value = addMonths(timelineCurrentDate.value, 1); };
 
@@ -244,6 +243,22 @@ const isWeekend = (dateString) => {
   const date = new Date(dateString);
   const day = date.getDay();
   return day === 0 || day === 6;
+};
+
+const openModal = async (aktivitasId) => {
+    try {
+        const response = await axios.get(`${baseURL}/api/aktivitas/${aktivitasId}`);
+        selectedAktivitas.value = response.data;
+        isModalOpen.value = true;
+    } catch (error) {
+        toast.error('Gagal memuat detail aktivitas.');
+        console.error('Error fetching aktivitas details:', error);
+    }
+};
+
+const closeModal = () => {
+    isModalOpen.value = false;
+    selectedAktivitas.value = null;
 };
 
 const assignLanes = (events) => {
@@ -443,20 +458,24 @@ const daftarPegawaiTimeline = computed(() => {
 });
 
 const calendarEvents = computed(() =>
-  filteredActivities.value.map(a => {
-    const endDate = a.tanggalSelesai ? new Date(a.tanggalSelesai) : new Date(a.tanggalMulai);
-    endDate.setDate(endDate.getDate() + 1);
-    
-    return {
-      id: a.id,
-      title: a.namaAktivitas,
-      start: a.tanggalMulai,
-      end: endDate.toISOString().split('T')[0],
-      backgroundColor: a.team?.warna || '#2563eb',
-      borderColor: a.team?.warna || '#2563eb',
-      textColor: '#fff'
-    };
-  })
+  filteredActivities.value.map(a => {
+    // Tentukan tanggal akhir
+    const endDate = a.tanggalSelesai ? new Date(a.tanggalSelesai) : new Date(a.tanggalMulai);
+    endDate.setDate(endDate.getDate() + 1);
+
+    // Tentukan apakah acara ini seharian penuh atau tidak
+    const isAllDay = !a.jamMulai && !a.jamSelesai;
+
+    return {
+      id: a.id,
+      title: a.namaAktivitas,
+      start: isAllDay ? a.tanggalMulai : `${a.tanggalMulai}T${a.jamMulai}`,
+      end: isAllDay ? endDate.toISOString().split('T')[0] : `${a.tanggalSelesai || a.tanggalMulai}T${a.jamSelesai}`,
+      allDay: isAllDay,
+      backgroundColor: a.team?.warna || '#2563eb',
+      borderColor: a.team?.warna || '#2563eb',
+    };
+  })
 );
 
 const renderCalendar = () => {
@@ -470,7 +489,7 @@ const renderCalendar = () => {
     headerToolbar: {
       left: 'prev,next today',
       center: 'title',
-      right: 'dayGridMonth,dayGridWeek,dayGridDay'
+      right: 'dayGridMonth,timeGridWeek,timeGridDay'
     },
     initialView: "dayGridMonth",
     events: calendarEvents.value,
@@ -483,14 +502,15 @@ const renderCalendar = () => {
     },
     eventClick: (info) => {
       const id = info.event.id;
-      router.push(`/aktivitas/detail/${id}`);
+      openModal(id);
     },
     eventDidMount: (info) => {
       info.el.style.backgroundColor = info.event.extendedProps.backgroundColor;
       info.el.style.borderColor = info.event.extendedProps.borderColor;
       info.el.style.cursor = 'pointer';
-      info.el.style.color = '#ffffff';
-    }
+    },
+    slotMinTime: '07:00:00',
+    slotMaxTime: '18:00:00',
   });
   fullCalendarInstance.render();
 };
@@ -601,7 +621,85 @@ watch(filteredActivities, (newActivities) => {
 
 
 <style scoped>
-/* Style Timeline Custom yang disempurnakan */
+/*
+  --------------------
+  FullCalendar Styles
+  --------------------
+*/
+.fc {
+  /* Mengatur variabel warna global untuk FullCalendar */
+  --fc-border-color: #e5e7eb; /* gray-200 */
+  --fc-daygrid-event-dot-color: #2563eb; /* blue-600 */
+  --fc-page-bg-color: #ffffff; /* white */
+  --fc-neutral-bg-color: #f3f4f6; /* gray-100 */
+  --fc-neutral-text-color: #6b7280; /* gray-500 */
+}
+
+/* Kustomisasi FullCalendar di Mode Gelap */
+.dark .fc {
+  --fc-border-color: #4b5563; /* gray-600 */
+  --fc-daygrid-event-dot-color: #93c5fd; /* blue-300 */
+  --fc-page-bg-color: #1f2937; /* gray-800 */
+  --fc-neutral-bg-color: #374151; /* gray-700 */
+  --fc-neutral-text-color: #d1d5db; /* gray-400 */
+}
+
+/* Aturan umum untuk tampilan kalender */
+.fc-daygrid-day,
+.fc-timegrid-slot,
+.fc-list-day {
+  background-color: var(--fc-page-bg-color);
+  color: var(--fc-neutral-text-color);
+}
+
+.fc-col-header-cell,
+.fc-day-header {
+  background-color: #f9fafb; /* gray-50 */
+  color: #1f2937; /* gray-900 */
+  border-color: var(--fc-border-color);
+}
+
+.dark .fc-col-header-cell,
+.dark .fc-day-header {
+  background-color: #111827; /* gray-900 */
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Teks dan angka di kalender */
+.fc-daygrid-day-number {
+  color: #1f2937; /* gray-900 */
+}
+
+.dark .fc-daygrid-day-number {
+  color: #e5e7eb; /* gray-200 */
+}
+
+/* Style untuk event/aktivitas */
+.fc-event {
+  color: #1f2937 !important; /* Teks hitam di mode terang */
+  border-color: transparent !important; /* Menghilangkan border default */
+}
+.dark .fc-event {
+  color: #ffffff !important; /* Teks putih di mode gelap */
+}
+
+/* Event yang seharian penuh */
+.fc-daygrid-event {
+  background-color: var(--fc-daygrid-event-dot-color);
+  color: #ffffff; /* Teks putih untuk acara seharian */
+}
+.dark .fc-daygrid-event {
+  color: #ffffff;
+}
+.fc-daygrid-event-harness {
+  cursor: pointer;
+}
+
+/*
+  --------------------
+  Timeline Styles
+  --------------------
+*/
 .timeline-scroll-container {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -617,12 +715,12 @@ watch(filteredActivities, (newActivities) => {
   font-weight: 600;
   text-overflow: ellipsis;
   overflow: hidden;
-  border-right: 1px solid #e5e7eb;
-  background-color: #fff;
+  border-right: 1px solid var(--fc-border-color);
+  background-color: var(--fc-page-bg-color);
+  color: #1f2937;
 }
+
 .dark .timeline-header-label-col, .dark .timeline-row-label {
-  border-right-color: #4b5563;
-  background-color: #1f2937;
   color: #e5e7eb;
 }
 
@@ -631,19 +729,14 @@ watch(filteredActivities, (newActivities) => {
   min-width: 50px;
   max-width: 50px;
   text-align: center;
-  border-left: 1px solid #e5e7eb;
-  border-bottom: 1px solid #e5e7eb;
+  border-left: 1px solid var(--fc-border-color);
+  border-bottom: 1px solid var(--fc-border-color);
   padding: 0.25rem 0.5rem;
-  background-color: #fff;
-}
-.dark .timeline-header-day-col {
-  border-left-color: #4b5563;
-  border-bottom-color: #4b5563;
-  background-color: #1f2937;
+  background-color: var(--fc-page-bg-color);
 }
 
 .bg-weekend-light {
-  background-color: #f3f4f6; /* gray-100 */
+  background-color: var(--fc-neutral-bg-color);
 }
 .dark .bg-weekend-dark {
   background-color: #374151; /* gray-700 */
@@ -654,44 +747,23 @@ watch(filteredActivities, (newActivities) => {
   position: relative;
   height: auto;
 }
+
 .timeline-row-label {
-  height: auto; /* Tinggi disesuaikan dengan konten */
+  height: auto;
   display: flex;
   align-items: center;
   position: sticky;
   left: 0;
   z-index: 1;
   padding: 0 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-.dark .timeline-row-label {
-  border-bottom-color: #4b5563;
+  border-bottom: 1px solid var(--fc-border-color);
 }
 
 .timeline-row-content {
   flex-grow: 1;
   position: relative;
   min-height: 50px;
-  border-left: 1px solid #e5e7eb;
-}
-.dark .timeline-row-content {
-  border-left-color: #4b5563;
-}
-.timeline-row-label-container {
-  flex-shrink: 0;
-  min-width: 200px;
-  max-width: 200px;
-  position: sticky;
-  left: 0;
-  z-index: 2;
-  background-color: #fff;
-}
-.dark .timeline-row-label-container {
-  background-color: #1f2937;
-}
-.timeline-header-wrap {
-  display: flex;
-  flex-grow: 1;
+  border-left: 1px solid var(--fc-border-color);
 }
 
 .timeline-event-bar {
@@ -705,6 +777,7 @@ watch(filteredActivities, (newActivities) => {
   cursor: pointer;
   transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, filter 0.2s ease-in-out;
   z-index: 5;
+  color: #ffffff; /* Warna teks default untuk bar timeline */
 }
 .timeline-event-bar:hover {
   transform: scaleY(1.1);
@@ -712,12 +785,12 @@ watch(filteredActivities, (newActivities) => {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
   z-index: 6;
 }
+
 .event-title-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 10px;
-  color: white;
 }
 .event-tooltip {
   position: absolute;
@@ -743,14 +816,9 @@ watch(filteredActivities, (newActivities) => {
 .fc-daygrid-event-harness {
   cursor: pointer;
 }
-.dark .fc-daygrid-day {
-  background-color: #1f2937;
-}
-.dark .fc-daygrid-day-number {
-  color: #e5e7eb;
-}
-.dark .fc-col-header-cell {
-  background-color: #111827;
-  color: #e5e7eb;
+.dark .fc-button {
+  background-color: #1f2937 !important;
+  color: #e5e7eb !important;
+  border-color: #4b5563 !important;
 }
 </style>
